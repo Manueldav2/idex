@@ -5,8 +5,12 @@ import type {
   AgentOutputChunk,
   AgentStateEvent,
   AppConfig,
+  FileNode,
   KeychainKey,
   Session,
+  WorkspaceOpenResult,
+  WorkspaceReadFileResult,
+  WorkspaceWriteFileResult,
 } from "@idex/types";
 
 declare global {
@@ -30,6 +34,12 @@ declare global {
         onState: (cb: (event: AgentStateEvent) => void) => () => void;
       };
       openExternal: (url: string) => Promise<boolean>;
+      workspace: {
+        open: () => Promise<WorkspaceOpenResult | null>;
+        tree: (rootPath: string) => Promise<FileNode | null>;
+        readFile: (filePath: string) => Promise<WorkspaceReadFileResult>;
+        writeFile: (filePath: string, content: string) => Promise<WorkspaceWriteFileResult>;
+      };
     };
   }
 }

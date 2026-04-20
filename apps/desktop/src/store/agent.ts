@@ -13,6 +13,9 @@ interface AgentStore {
   sessions: Record<string, SessionData>;
   order: string[];
   activeId: string | null;
+  /** Last spawn/creation error, surfaced in the cockpit as a banner. Cleared
+   *  when the user creates a session successfully or dismisses it. */
+  globalError: string | null;
 
   bindStreams: () => () => void;
 
@@ -28,6 +31,9 @@ interface AgentStore {
   /** Record a user_input event against a session. */
   pushUserEvent: (sessionId: string, text: string) => void;
 
+  /** Clear the current globalError (user dismissed the banner). */
+  clearGlobalError: () => void;
+
   /** Derived helpers */
   getActive: () => SessionData | null;
   getActiveState: () => AgentState;
@@ -37,6 +43,7 @@ export const useAgent = create<AgentStore>((set, get) => ({
   sessions: {},
   order: [],
   activeId: null,
+  globalError: null,
 
   bindStreams() {
     const offState = ipc().agent.onState((event) => {
@@ -87,6 +94,10 @@ export const useAgent = create<AgentStore>((set, get) => ({
     const cwd = opts.cwd ?? "";
     const r = await ipc().agent.spawn({ agentId, cwd });
     if (!r.ok || !r.session) {
+      // Surface the failure so Cockpit can render a proper banner instead
+      // of silently dropping (which left users without the CLI installed
+      // staring at an empty screen).
+      set({ globalError: r.error ?? `Could not start ${agentId}. Is it on your PATH?` });
       return { ok: false, error: r.error };
     }
     const session = r.session;
@@ -97,8 +108,13 @@ export const useAgent = create<AgentStore>((set, get) => ({
       },
       order: [...s.order, session.id],
       activeId: session.id,
+      globalError: null,
     }));
     return { ok: true, id: session.id };
+  },
+
+  clearGlobalError() {
+    set({ globalError: null });
   },
 
   setActive(id) {

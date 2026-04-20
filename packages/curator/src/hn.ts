@@ -30,13 +30,14 @@ export async function searchHackerNews(query: string, count = 8): Promise<Card[]
     `${BASE}?query=${encodeURIComponent(query)}` +
     `&tags=story&hitsPerPage=${count}`;
   try {
-    const res = await fetch(url, { method: "GET" });
+    const res = await fetch(url, { method: "GET", signal: AbortSignal.timeout(4000) });
     if (!res.ok) return [];
     const body = (await res.json()) as HNResponse;
     return body.hits
       .filter((h) => h.title)
       .map((h) => hnToCard(h, query));
   } catch {
+    // Timeout or network error: return empty so the starter feed takes over.
     return [];
   }
 }

@@ -75,14 +75,15 @@ export const IPC = {
   AGENT_KILL: "agent:kill",
   AGENT_RESIZE: "agent:resize",
   SESSION_LIST: "session:list",
-  CONTEXT_EVENT: "context:event",
-  FEED_CARDS: "feed:cards",
-  FEED_STATE: "feed:state",
   CONFIG_GET: "config:get",
   CONFIG_SET: "config:set",
   KEYCHAIN_GET: "keychain:get",
   KEYCHAIN_SET: "keychain:set",
   OPEN_EXTERNAL: "open:external",
+  WORKSPACE_OPEN: "workspace:open",
+  WORKSPACE_TREE: "workspace:tree",
+  WORKSPACE_READ_FILE: "workspace:read-file",
+  WORKSPACE_WRITE_FILE: "workspace:write-file",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
@@ -150,6 +151,8 @@ export interface FeedCardsPayload {
  * Persistent app config (~/.idex/config.json) *
  * ────────────────────────────────────────── */
 
+export type CockpitMode = "agent" | "editor";
+
 export interface AppConfig {
   schemaVersion: 1;
   selectedAgent: AgentId;
@@ -166,6 +169,12 @@ export interface AppConfig {
   curatorEnabled: boolean;
   /** Show ads (v1.0 default OFF, v1.1 default ON). */
   adsEnabled: boolean;
+  /** Which top-level mode the cockpit is in. */
+  mode: CockpitMode;
+  /** Most-recently opened workspace folder (absolute path). Null until first open. */
+  workspacePath: string | null;
+  /** Has the user seen the first-launch keyboard shortcut hint? */
+  hasSeenShortcutHint: boolean;
 }
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
@@ -178,7 +187,49 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   privacyDisclosureAccepted: false,
   curatorEnabled: true,
   adsEnabled: false,
+  mode: "agent",
+  workspacePath: null,
+  hasSeenShortcutHint: false,
 };
+
+/* ────────────────────────────────────────── *
+ * Editor mode — workspace file tree          *
+ * ────────────────────────────────────────── */
+
+export interface FileNode {
+  name: string;
+  /** Absolute filesystem path. Treat as opaque in the renderer. */
+  path: string;
+  kind: "file" | "dir";
+  /** Children are pre-loaded up to a fixed depth; `undefined` on files. */
+  children?: FileNode[];
+}
+
+export interface WorkspaceOpenResult {
+  path: string;
+}
+
+export interface WorkspaceReadFileResult {
+  ok: boolean;
+  content?: string;
+  error?: string;
+}
+
+export interface WorkspaceWriteFileResult {
+  ok: boolean;
+  error?: string;
+}
+
+/** Directory names that never appear in the tree. */
+export const WORKSPACE_IGNORE = new Set<string>([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  "release",
+  ".turbo",
+  "coverage",
+]);
 
 /* ────────────────────────────────────────── *
  * Keychain key namespacing                   *

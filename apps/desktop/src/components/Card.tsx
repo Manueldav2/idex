@@ -12,7 +12,17 @@ function sourceChip(source: CardType["source"]): { label: string; klass: string 
   }
 }
 
-export function Card({ card, focused }: { card: CardType; focused: boolean }) {
+export function Card({
+  card,
+  focused,
+  shimmer = false,
+}: {
+  card: CardType;
+  focused: boolean;
+  /** When true, overlay a subtle accent-tinted shimmer to signal a live
+   *  fetch is in flight replacing this starter card. */
+  shimmer?: boolean;
+}) {
   const fb = card.fallback;
   const open = () => void window.idex.openExternal(card.url);
   const chip = sourceChip(card.source);
@@ -26,6 +36,9 @@ export function Card({ card, focused }: { card: CardType; focused: boolean }) {
       }`}
       onClick={open}
     >
+      {shimmer && (
+        <div aria-hidden className="card-shimmer absolute inset-0 rounded" />
+      )}
       <div className="flex items-start gap-3">
         {fb?.author?.avatarUrl ? (
           <img src={fb.author.avatarUrl} alt="" className="size-10 rounded-full shrink-0 bg-ink-2" loading="lazy" />

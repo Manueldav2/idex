@@ -21,6 +21,17 @@ export function SessionView({ data, active }: Props) {
   const xtermRef = useRef<XTerm | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const lineBufferRef = useRef("");
+  // First-run trust-prompt auto-accept: we scan the cleaned output buffer
+  // for "trust this folder" and send Enter once, but only if the user hasn't
+  // typed yet. Refs keep this scoped per-session with no re-render churn.
+  const cleanTextBufferRef = useRef("");
+  const userHasTypedRef = useRef(false);
+  const autoAcceptedRef = useRef(false);
+  // Active-state ref so the stable xterm.onData callback (set once in the
+  // [sessionId] effect below) can early-return when this session is in the
+  // background tab — otherwise stray keystrokes / shell output can push
+  // bogus user_input events for an inactive session.
+  const activeRef = useRef(active);
   const sessionId = data.session.id;
 
   useEffect(() => {
@@ -73,11 +84,37 @@ export function SessionView({ data, active }: Props) {
     const offOutput = ipc().agent.onOutput((chunk) => {
       if (chunk.sessionId !== sessionId) return;
       term.write(chunk.raw);
+
+      // Accumulate cleaned stdout to detect Claude Code's trust-folder prompt.
+      // Cap the buffer so we don't grow unbounded over a long session.
+      if (!autoAcceptedRef.current) {
+        cleanTextBufferRef.current += chunk.clean;
+        if (cleanTextBufferRef.current.length > 16000) {
+          cleanTextBufferRef.current = cleanTextBufferRef.current.slice(-8000);
+        }
+        const match = /trust this folder/i.test(cleanTextBufferRef.current);
+        if (match && !userHasTypedRef.current) {
+          autoAcceptedRef.current = true;
+          setTimeout(() => {
+            // Recheck right before sending — user may have started typing
+            // during the 400ms delay.
+            if (userHasTypedRef.current) return;
+            void ipc().agent.input({ sessionId, text: "\r" });
+          }, 400);
+        }
+      }
     });
 
     // Send xterm keystrokes → PTY (raw). Detect Enter-with-typed-content
     // as a user submission → expand feed + push user_input event.
     const onTermData = term.onData((data) => {
+      // If this session isn't active (background tab), never forward
+      // keystrokes — xterm itself wouldn't be receiving them in a
+      // display:none container, but some auto-replay paths can still fire.
+      if (!activeRef.current) return;
+      // Any keystroke from the user cancels the pending auto-accept and
+      // marks the session as "user has interacted" forever.
+      userHasTypedRef.current = true;
       void ipc().agent.input({ sessionId, text: data });
       if (data === "\r" || data === "\n") {
         const submitted = lineBufferRef.current.trim();
@@ -112,9 +149,15 @@ export function SessionView({ data, active }: Props) {
     };
   }, [sessionId]); // only re-mount if session id changes (shouldn't happen)
 
-  // Refit + focus when this session becomes active
+  // Keep activeRef in sync for the onData closure. Also clear the line
+  // buffer on tab-switch so stale characters don't get coalesced into the
+  // next Enter submission.
   useEffect(() => {
-    if (!active) return;
+    activeRef.current = active;
+    if (!active) {
+      lineBufferRef.current = "";
+      return;
+    }
     const id = setTimeout(() => {
       try {
         fitRef.current?.fit();

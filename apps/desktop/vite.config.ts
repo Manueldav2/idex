@@ -44,6 +44,22 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Monaco ships its own web workers (editor + per-language). Vite will hoist
+  // them into the bundle when we pre-bundle them here; the worker output is
+  // emitted as hashed JS under the normal build `outDir`.
+  optimizeDeps: {
+    include: [
+      "@monaco-editor/react",
+      "monaco-editor/esm/vs/editor/editor.worker?worker",
+      "monaco-editor/esm/vs/language/json/json.worker?worker",
+      "monaco-editor/esm/vs/language/css/css.worker?worker",
+      "monaco-editor/esm/vs/language/html/html.worker?worker",
+      "monaco-editor/esm/vs/language/typescript/ts.worker?worker",
+    ],
+  },
+  worker: {
+    format: "es",
+  },
   build: {
     outDir: "dist",
     emptyOutDir: true,

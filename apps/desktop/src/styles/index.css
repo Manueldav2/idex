@@ -35,6 +35,93 @@
   100% { background-position: 1000px 0; }
 }
 
+/* Card shimmer overlay — tasteful left-to-right gradient sweep over a starter
+   card to indicate the live feed is being fetched. Low opacity, accent-tinted. */
+@keyframes card-shimmer-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+/* The wrapper element itself is positioned absolutely via Tailwind
+   (absolute inset-0). The shimmer is painted via a ::after gradient that
+   sweeps across — contained by overflow:hidden on the wrapper. */
+.card-shimmer {
+  overflow: hidden;
+  pointer-events: none;
+}
+.card-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(61, 123, 255, 0.06) 40%,
+    rgba(61, 123, 255, 0.10) 50%,
+    rgba(61, 123, 255, 0.06) 60%,
+    transparent 100%
+  );
+  animation: card-shimmer-sweep 1.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Soft pulsing halo on a session tab's state dot while the session is
+   generating. Animates a box-shadow opacity — tasteful, non-bouncy. */
+@keyframes dot-halo-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(61, 123, 255, 0.0); }
+  50%      { box-shadow: 0 0 0 3px rgba(61, 123, 255, 0.35); }
+}
+.dot-halo-pulse {
+  animation: dot-halo-pulse 1.6s ease-in-out infinite;
+}
+
+/* Soft pulsing dot for empty-state copy ("reading the room..."). */
+@keyframes dot-soft-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50%      { opacity: 1;    transform: scale(1.1); }
+}
+.dot-soft-pulse {
+  animation: dot-soft-pulse 1.4s ease-in-out infinite;
+}
+
+/* CSS-only tooltip: applied to a wrapper that sets data-tooltip="..." and
+   data-tooltip-pos="top" | "bottom". Matches our design language: tiny,
+   mono, secondary text on ink-2 bg, 1px line border. No shadow, no fade-in
+   lag (purely opacity). */
+.tt {
+  position: relative;
+}
+.tt::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%) translateY(-2px);
+  bottom: calc(100% + 6px);
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
+  background: var(--color-ink-2);
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms var(--ease-out), transform 140ms var(--ease-out);
+  z-index: 50;
+}
+.tt[data-tooltip-pos="bottom"]::after {
+  bottom: auto;
+  top: calc(100% + 6px);
+  transform: translateX(-50%) translateY(2px);
+}
+.tt:hover::after,
+.tt:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 * {
   box-sizing: border-box;
 }

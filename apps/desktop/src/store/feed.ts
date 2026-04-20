@@ -13,6 +13,11 @@ interface FeedStore {
   setState: (state: FeedState) => void;
 }
 
+// Monotonic request counter outside the store — used to de-dupe stale
+// curateLive() resolutions when refresh() is called rapidly (Enter spam).
+// The last refresh wins; earlier resolutions are ignored.
+let _liveReqCounter = 0;
+
 export const useFeed = create<FeedStore>((set, get) => ({
   state: "peek",
   cards: [],
@@ -44,17 +49,18 @@ export const useFeed = create<FeedStore>((set, get) => ({
       isLoading: true,
     }));
 
-    // Kick off the async live fetch (HN + Reddit) and replace cards when ready.
-    const thisGen = get().generation + 1;
+    // Request ID is captured BEFORE the async kicks off; when it resolves
+    // we check that no newer request has started (race-safe).
+    const myReq = ++_liveReqCounter;
     void curateLive({ recentEvents: events }).then(({ cards }) => {
-      // Only apply if no newer refresh has happened in the meantime
-      if (get().generation > thisGen) return;
+      if (myReq !== _liveReqCounter) return; // stale
       set((s) => ({
         cards,
         generation: s.generation + 1,
         isLoading: false,
       }));
     }).catch(() => {
+      if (myReq !== _liveReqCounter) return;
       set({ isLoading: false });
     });
   },

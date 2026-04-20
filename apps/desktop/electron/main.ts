@@ -12,6 +12,7 @@ import {
 import { agentHost } from "./agent-host.js";
 import { configStore } from "./config-store.js";
 import { keychain } from "./keychain.js";
+import { workspace } from "./workspace.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !!process.env["VITE_DEV_SERVER_URL"];
@@ -86,6 +87,13 @@ function registerIpc() {
     await shell.openExternal(url);
     return true;
   });
+
+  ipcMain.handle(IPC.WORKSPACE_OPEN, async () => workspace.openPicker());
+  ipcMain.handle(IPC.WORKSPACE_TREE, async (_, rootPath: string) => workspace.loadTree(rootPath));
+  ipcMain.handle(IPC.WORKSPACE_READ_FILE, async (_, filePath: string) => workspace.readFile(filePath));
+  ipcMain.handle(IPC.WORKSPACE_WRITE_FILE, async (_, filePath: string, content: string) =>
+    workspace.writeFile(filePath, content),
+  );
 }
 
 app.whenReady().then(() => {

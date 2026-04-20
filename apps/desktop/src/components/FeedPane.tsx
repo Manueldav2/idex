@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useFeed } from "@/store/feed";
 import { useSettings } from "@/store/settings";
 import { Card } from "./Card";
-import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 export function FeedPane() {
   const config = useSettings((s) => s.config);
@@ -11,6 +11,7 @@ export function FeedPane() {
   const state = useFeed((s) => s.state);
   const setState = useFeed((s) => s.setState);
   const refresh = useFeed((s) => s.refresh);
+  const isLoading = useFeed((s) => s.isLoading);
 
   const [focusedIdx, setFocusedIdx] = useState(0);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -103,7 +104,7 @@ export function FeedPane() {
                 <span className="text-[11px] font-mono text-text-secondary ml-1">
                   dev · {cards.length}
                 </span>
-                {useFeed.getState().isLoading && (
+                {isLoading && (
                   <span className="text-[10px] font-mono text-accent uppercase tracking-wider ml-2 animate-pulse">
                     curating
                   </span>
@@ -118,9 +119,7 @@ export function FeedPane() {
             </header>
 
             {cards.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center text-text-secondary text-sm">
-                <Sparkles className="size-4 text-accent mr-2 animate-pulse" /> finding something worth reading...
-              </div>
+              <EmptyFeedState isLoading={isLoading} />
             ) : (
               <div
                 ref={scrollerRef}
@@ -139,7 +138,11 @@ export function FeedPane() {
                     className={i === focusedIdx ? "bg-ink-1/60" : ""}
                     onClick={() => setFocusedIdx(i)}
                   >
-                    <Card card={c} focused={i === focusedIdx} />
+                    <Card
+                      card={c}
+                      focused={i === focusedIdx}
+                      shimmer={isLoading && c.source === "starter"}
+                    />
                   </motion.div>
                 ))}
               </div>
@@ -148,6 +151,28 @@ export function FeedPane() {
         )}
       </AnimatePresence>
     </motion.aside>
+  );
+}
+
+function EmptyFeedState({ isLoading }: { isLoading: boolean }) {
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-text-secondary">
+        <span className="dot-soft-pulse size-2 rounded-full bg-accent" />
+        <span className="text-[13px]">reading the room...</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-3 text-text-secondary px-8 text-center">
+      <span className="text-[13px] leading-relaxed max-w-[320px]">
+        the feed is quiet. send a prompt to wake it up.
+      </span>
+      <span className="text-[10.5px] font-mono text-text-secondary/70 inline-flex items-center gap-1.5">
+        <kbd className="px-1.5 py-0.5 rounded border border-line bg-ink-1 text-text-secondary">⏎</kbd>
+        send
+      </span>
+    </div>
   );
 }
 

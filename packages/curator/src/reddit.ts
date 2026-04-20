@@ -39,6 +39,7 @@ export async function searchReddit(query: string, count = 6): Promise<Card[]> {
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": "IDEX/0.1 (contextual feed)" },
+      signal: AbortSignal.timeout(4000),
     });
     if (!res.ok) return [];
     const body = (await res.json()) as RedditResp;

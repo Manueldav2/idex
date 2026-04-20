@@ -7,8 +7,12 @@ import type {
   AgentOutputChunk,
   AgentStateEvent,
   AppConfig,
+  FileNode,
   KeychainKey,
   Session,
+  WorkspaceOpenResult,
+  WorkspaceReadFileResult,
+  WorkspaceWriteFileResult,
 } from "@idex/types";
 
 const api = {
@@ -39,6 +43,14 @@ const api = {
     },
   },
   openExternal: (url: string): Promise<boolean> => ipcRenderer.invoke(IPC.OPEN_EXTERNAL, url),
+  workspace: {
+    open: (): Promise<WorkspaceOpenResult | null> => ipcRenderer.invoke(IPC.WORKSPACE_OPEN),
+    tree: (rootPath: string): Promise<FileNode | null> => ipcRenderer.invoke(IPC.WORKSPACE_TREE, rootPath),
+    readFile: (filePath: string): Promise<WorkspaceReadFileResult> =>
+      ipcRenderer.invoke(IPC.WORKSPACE_READ_FILE, filePath),
+    writeFile: (filePath: string, content: string): Promise<WorkspaceWriteFileResult> =>
+      ipcRenderer.invoke(IPC.WORKSPACE_WRITE_FILE, filePath, content),
+  },
 };
 
 contextBridge.exposeInMainWorld("idex", api);

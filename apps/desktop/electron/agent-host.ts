@@ -113,7 +113,10 @@ class AgentHost {
     pty.onExit(() => {
       console.log(`[idex] session ${sessionId} exited`);
       this.sessions.delete(sessionId);
-      this.cbs?.onState({ sessionId, state: "error" });
+      // Natural exit (user typed `exit`, ctrl-D, etc.) → idle. Don't flash
+      // the tab red for graceful exits. Real spawn failures never reach
+      // onExit because they throw synchronously from pty.spawn().
+      this.cbs?.onState({ sessionId, state: "idle" });
     });
 
     return {
@@ -202,7 +205,9 @@ class AgentHost {
     try { session.pty.kill(); } catch { /* ignore */ }
     this.clearIdleTimer(session);
     this.sessions.delete(sessionId);
-    this.cbs?.onState({ sessionId, state: "error" });
+    // User-initiated close → idle, not error. Reserve "error" for actual
+    // failure states.
+    this.cbs?.onState({ sessionId, state: "idle" });
   }
 
   list(): Session[] {

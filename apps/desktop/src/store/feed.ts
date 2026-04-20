@@ -20,11 +20,13 @@ export const useFeed = create<FeedStore>((set, get) => ({
   generation: 0,
 
   bindToAgent() {
+    // Collapse-on-done only. Expansion is triggered explicitly from agent.send()
+    // so we don't flap every time the PTY emits a keystroke echo.
     const unsub = useAgent.subscribe((agentStore, prev) => {
-      if (agentStore.state === "generating" && prev.state !== "generating") {
-        set({ state: "expanded" });
-        get().refresh();
-      } else if (agentStore.state === "done" && prev.state !== "done") {
+      if (agentStore.state === "done" && prev.state !== "done") {
+        set({ state: "peek" });
+      }
+      if (agentStore.state === "error") {
         set({ state: "peek" });
       }
     });

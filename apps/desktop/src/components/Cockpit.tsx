@@ -4,6 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { useAgent } from "@/store/agent";
 import { useSettings } from "@/store/settings";
 import { useFeed } from "@/store/feed";
+// also imported by xterm handler below
 import { ipc } from "@/lib/ipc";
 import { IdexLogo } from "./IdexLogo";
 import { FeedPane } from "./FeedPane";
@@ -63,8 +64,9 @@ export function Cockpit() {
     xtermRef.current = term;
     fitRef.current = fit;
 
-    // Friendly welcome until Claude Code's banner takes over
-    term.writeln("\x1b[38;2;139;146;165m  starting " + agentLabel(config.selectedAgent) + "...\x1b[0m");
+    // A very short splash — Claude Code prints its own banner within ~200ms
+    term.writeln("\x1b[38;2;61;123;255m  ▸\x1b[0m \x1b[38;2;139;146;165mstarting " + agentLabel(config.selectedAgent) + "...\x1b[0m");
+    term.writeln("");
 
     // Spawn agent
     void useAgent.getState().spawn(config.selectedAgent, "").then((r) => {
@@ -77,8 +79,28 @@ export function Cockpit() {
     });
 
     // xterm keystrokes → agent PTY (raw, no CR appending)
+    // Track typed text so we can infer "user submitted a message" when Enter
+    // is pressed inside the TUI — that's our trigger to expand the feed.
+    let lineBuffer = "";
     const onTermData = term.onData((data) => {
       void window.idex.agent.input({ text: data });
+      // Detect Enter (\r or \n) as submission
+      if (data === "\r" || data === "\n") {
+        const submitted = lineBuffer.trim();
+        lineBuffer = "";
+        if (submitted.length > 0) {
+          // Record the user event and trigger feed expansion/refresh
+          useAgent.getState().pushUserEvent(submitted);
+          useFeed.getState().setState("expanded");
+          useFeed.getState().refresh();
+        }
+      } else if (data === "\u007f" || data === "\b") {
+        // Backspace
+        lineBuffer = lineBuffer.slice(0, -1);
+      } else if (data.length === 1 && data >= " ") {
+        lineBuffer += data;
+      }
+      // Ignore Ctrl codes / arrows — they aren't user text
     });
 
     // Auto-refit on resize
@@ -107,17 +129,17 @@ export function Cockpit() {
   return (
     <div className="flex h-full w-full bg-ink-0">
       <main className="relative flex h-full flex-1 flex-col bg-ink-1 border-r border-line">
-        <header className="glass draggable flex items-center justify-between border-b border-line px-6 py-3 h-14 shrink-0">
-          <div className="flex items-center gap-4 no-drag">
+        <header className="glass draggable flex items-center justify-between border-b border-line pl-24 pr-4 py-3 h-14 shrink-0">
+          <div className="flex items-center gap-4 no-drag min-w-0">
             <IdexLogo />
-            <div className="text-[12px] font-mono text-text-secondary flex items-center gap-2">
+            <div className="text-[12px] font-mono text-text-secondary flex items-center gap-2 min-w-0">
               <AgentPicker
                 value={config.selectedAgent}
                 onChange={(id) => void patchConfig({ selectedAgent: id })}
               />
               <span className="opacity-40">·</span>
-              <span className="opacity-70">{config.agentBinaryPath || "~"}</span>
-              <span className="ml-1 inline-block px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider bg-accent-soft text-accent">
+              <span className="opacity-70 truncate">{config.agentBinaryPath || "~"}</span>
+              <span className="ml-1 inline-block px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider bg-accent-soft text-accent shrink-0">
                 v0.1.0
               </span>
             </div>
@@ -146,7 +168,7 @@ export function Cockpit() {
         <div
           onClick={focusTerminal}
           ref={xtermContainer}
-          className="flex-1 px-6 py-4 overflow-hidden cursor-text"
+          className="flex-1 px-8 pt-6 pb-4 overflow-hidden cursor-text"
         />
 
         <footer className="border-t border-line bg-ink-1 px-6 py-2.5 flex items-center justify-between text-[11px] font-mono text-text-secondary shrink-0">

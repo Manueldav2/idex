@@ -13,6 +13,7 @@ interface ActiveSession {
   buffer: string; // raw buffer since last detected boundary
   lastChunkAt: number;
   idleTimer: NodeJS.Timeout | null;
+  lastEmittedState: AgentState | null;
 }
 
 const IDLE_BOUNDARY_MS = 350;
@@ -36,8 +37,8 @@ class AgentHost {
     const adapter = getAdapter(opts.agentId);
     const command = adapter.getCommand();
 
-    const env = {
-      ...process.env,
+    const env: Record<string, string> = {
+      ...(process.env as Record<string, string>),
       ...(opts.env ?? {}),
       // Force TTY-friendly behavior in agent CLIs
       TERM: process.env["TERM"] ?? "xterm-256color",
@@ -96,8 +97,9 @@ class AgentHost {
       buffer: "",
       lastChunkAt: Date.now(),
       idleTimer: null,
+      lastEmittedState: null,
     };
-    onState("idle");
+    this.emitState("idle");
 
     pty.onData((data) => this.handleData(data));
     pty.onExit(() => {
@@ -129,12 +131,23 @@ class AgentHost {
 
     if (detection.userPromptBoundary) {
       session.buffer = "";
-      this.stateCb?.("done");
+      this.emitState("done");
       this.clearIdleTimer();
     } else {
       this.armIdleTimer();
-      this.stateCb?.("generating");
+      // Only emit "generating" on the transition, not every chunk — otherwise
+      // every keystroke echo causes a state flap and the feed expands/collapses
+      // on every character.
+      this.emitState("generating");
     }
+  }
+
+  private emitState(next: AgentState) {
+    const session = this.session;
+    if (!session) return;
+    if (session.lastEmittedState === next) return;
+    session.lastEmittedState = next;
+    this.stateCb?.(next);
   }
 
   private armIdleTimer() {
@@ -143,8 +156,7 @@ class AgentHost {
     this.session.idleTimer = setTimeout(() => {
       const session = this.session;
       if (!session) return;
-      // Idle threshold reached → treat as done.
-      this.stateCb?.("done");
+      this.emitState("done");
       session.buffer = "";
     }, IDLE_BOUNDARY_MS);
   }
@@ -174,6 +186,7 @@ class AgentHost {
     this.clearIdleTimer();
     this.session = null;
     this.stateCb?.("idle");
+    this.stateCb = null;
   }
 
   killAll(): void {

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AgentId, AgentState, ContextEvent } from "@idex/types";
 import { ipc } from "@/lib/ipc";
+import { useFeed } from "./feed";
 
 interface AgentStore {
   state: AgentState;
@@ -67,10 +68,11 @@ export const useAgent = create<AgentStore>((set, get) => ({
     const t = text.trim();
     if (!t) return;
     get().pushUserEvent(t);
-    // Optimistically switch to generating so the feed pane reacts immediately.
-    // The main process will issue authoritative state updates as the PTY streams.
     set({ state: "generating" });
-    // Append \r so Claude Code's TUI treats it as a submitted line.
+    // Explicit feed expand + refresh on every user send. This is the one place
+    // feed expansion is triggered — not from raw PTY state events.
+    useFeed.getState().setState("expanded");
+    useFeed.getState().refresh();
     await ipc().agent.input({ text: `${t}\r` });
   },
 

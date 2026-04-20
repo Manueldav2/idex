@@ -41,7 +41,7 @@ export function FeedPane() {
 
   if (!config.feedEnabled) {
     return (
-      <aside className="w-12 bg-ink-0 border-l border-line flex items-center justify-center">
+      <aside style={{ width: "40px", flexShrink: 0 }} className="bg-ink-0 border-l border-line flex items-center justify-center">
         <button
           onClick={() => useSettings.getState().patch({ feedEnabled: true })}
           className="text-text-secondary hover:text-text-primary -rotate-90 origin-center text-[11px] font-mono uppercase tracking-wider whitespace-nowrap"
@@ -53,19 +53,25 @@ export function FeedPane() {
     );
   }
 
-  const widthClass =
-    state === "expanded" ? "w-[60%]" : state === "transitioning" ? "w-1/2" : "w-[88px]";
+  const targetWidth = state === "expanded" ? "55%" : "160px";
+  const collapsedWidth = "160px";
 
   return (
     <motion.aside
-      layout
-      initial={false}
-      animate={{ width: widthClass === "w-[60%]" ? "60%" : widthClass === "w-1/2" ? "50%" : "88px" }}
+      initial={{ width: collapsedWidth }}
+      animate={{ width: targetWidth }}
       transition={{
         duration: state === "expanded" ? 0.28 : 0.22,
         ease: [0.32, 0.72, 0, 1],
       }}
-      className={`relative flex h-full flex-col bg-ink-0 border-l border-line overflow-hidden`}
+      style={{
+        height: "100%",
+        minWidth: collapsedWidth,
+        flexShrink: 0,
+        flexGrow: 0,
+        flexBasis: collapsedWidth,
+      }}
+      className="relative flex flex-col bg-ink-0 border-l-2 border-accent/20 overflow-hidden"
     >
       {state === "peek" && (
         <PeekStrip
@@ -128,25 +134,28 @@ function PeekStrip({ card, onExpand }: { card?: import("@idex/types").Card; onEx
   return (
     <button
       onClick={onExpand}
-      className="peek-pulse w-full h-full flex flex-col items-center justify-between py-6 px-2 group"
+      className="w-full h-full flex flex-col items-center justify-between py-5 px-3 group hover:bg-ink-1/40 transition-colors"
       title={card?.relevanceReason ?? "Open feed"}
     >
-      <ChevronLeft className="size-4 text-text-secondary group-hover:text-accent transition-colors" />
-      <div
-        className="flex-1 w-full my-4 rounded-xl border border-line overflow-hidden bg-ink-1"
-        style={{ filter: "blur(6px) brightness(0.7)" }}
-      >
+      <div className="flex flex-col items-center gap-2 text-text-secondary group-hover:text-accent transition-colors">
+        <ChevronLeft className="size-4" />
+        <span className="text-[9px] uppercase tracking-[0.2em] font-mono -rotate-90 origin-center whitespace-nowrap mt-3">
+          feed
+        </span>
+      </div>
+      <div className="peek-pulse relative flex-1 w-full my-4 rounded-xl border border-line overflow-hidden bg-ink-1">
         {card?.fallback?.media?.[0]?.url && (
-          <img src={card.fallback.media[0].url} alt="" className="w-full h-full object-cover" />
+          <img src={card.fallback.media[0].url} alt="" className="w-full h-full object-cover" style={{ filter: "blur(4px) brightness(0.55)" }} />
         )}
-        {(!card?.fallback?.media || card?.fallback?.media?.length === 0) && (
-          <div className="w-full h-full flex items-center justify-center text-text-secondary text-xs font-mono">
-            ●●●
+        {(!card?.fallback?.media || card?.fallback?.media?.length === 0) && card?.fallback?.text && (
+          <div className="w-full h-full p-2 text-[8px] leading-tight text-text-secondary/70 overflow-hidden" style={{ filter: "blur(1px)" }}>
+            {card.fallback.text.slice(0, 200)}
           </div>
         )}
+        <div className="absolute inset-0 ring-1 ring-inset ring-accent/20 rounded-xl pointer-events-none" />
       </div>
-      <div className="text-[9px] uppercase tracking-widest text-text-secondary group-hover:text-accent transition-colors rotate-90 mt-4">
-        feed
+      <div className="text-[9px] font-mono text-text-secondary/60">
+        {card ? "●" : "○"}
       </div>
     </button>
   );

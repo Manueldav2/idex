@@ -7,6 +7,8 @@ import type {
   AppConfig,
   FileNode,
   KeychainKey,
+  ProjectCreateFolderArgs,
+  ProjectCreateFolderResult,
   Session,
   WorkspaceOpenResult,
   WorkspaceReadFileResult,
@@ -39,6 +41,9 @@ declare global {
         tree: (rootPath: string) => Promise<FileNode | null>;
         readFile: (filePath: string) => Promise<WorkspaceReadFileResult>;
         writeFile: (filePath: string, content: string) => Promise<WorkspaceWriteFileResult>;
+      };
+      projects: {
+        create: (args: ProjectCreateFolderArgs) => Promise<ProjectCreateFolderResult>;
       };
     };
   }

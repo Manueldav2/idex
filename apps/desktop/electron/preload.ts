@@ -9,6 +9,8 @@ import type {
   AppConfig,
   FileNode,
   KeychainKey,
+  ProjectCreateFolderArgs,
+  ProjectCreateFolderResult,
   Session,
   WorkspaceOpenResult,
   WorkspaceReadFileResult,
@@ -50,6 +52,10 @@ const api = {
       ipcRenderer.invoke(IPC.WORKSPACE_READ_FILE, filePath),
     writeFile: (filePath: string, content: string): Promise<WorkspaceWriteFileResult> =>
       ipcRenderer.invoke(IPC.WORKSPACE_WRITE_FILE, filePath, content),
+  },
+  projects: {
+    create: (args: ProjectCreateFolderArgs): Promise<ProjectCreateFolderResult> =>
+      ipcRenderer.invoke(IPC.PROJECTS_CREATE_FOLDER, args),
   },
 };
 

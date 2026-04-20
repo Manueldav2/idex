@@ -84,6 +84,7 @@ export const IPC = {
   WORKSPACE_TREE: "workspace:tree",
   WORKSPACE_READ_FILE: "workspace:read-file",
   WORKSPACE_WRITE_FILE: "workspace:write-file",
+  PROJECTS_CREATE_FOLDER: "projects:create-folder",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
@@ -151,7 +152,23 @@ export interface FeedCardsPayload {
  * Persistent app config (~/.idex/config.json) *
  * ────────────────────────────────────────── */
 
-export type CockpitMode = "agent" | "editor";
+export type CockpitMode = "agent" | "autopilot" | "editor";
+
+/**
+ * A workspace folder the user has opened before. Stored in AppConfig so the
+ * launcher can offer quick re-entry. Capped at 10 entries (LRU).
+ */
+export interface RecentProject {
+  /** Absolute filesystem path. */
+  path: string;
+  /** Epoch ms when the folder was last opened. */
+  lastOpened: number;
+  /** Optional user-provided label. Falls back to basename(path). */
+  label?: string;
+}
+
+/** Maximum recentProjects entries we keep. Older entries are dropped (LRU). */
+export const RECENT_PROJECTS_MAX = 10;
 
 export interface AppConfig {
   schemaVersion: 1;
@@ -175,6 +192,8 @@ export interface AppConfig {
   workspacePath: string | null;
   /** Has the user seen the first-launch keyboard shortcut hint? */
   hasSeenShortcutHint: boolean;
+  /** LRU-ordered list of recently opened workspace folders (most recent first). */
+  recentProjects: RecentProject[];
 }
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
@@ -190,6 +209,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   mode: "agent",
   workspacePath: null,
   hasSeenShortcutHint: false,
+  recentProjects: [],
 };
 
 /* ────────────────────────────────────────── *
@@ -217,6 +237,24 @@ export interface WorkspaceReadFileResult {
 
 export interface WorkspaceWriteFileResult {
   ok: boolean;
+  error?: string;
+}
+
+/* ────────────────────────────────────────── *
+ * Projects — new-folder IPC                  *
+ * ────────────────────────────────────────── */
+
+export interface ProjectCreateFolderArgs {
+  /** Absolute path to the parent directory the new folder is created inside. */
+  parentDir: string;
+  /** Folder name. Validated in main — no separators, no leading dots-only. */
+  name: string;
+}
+
+export interface ProjectCreateFolderResult {
+  ok: boolean;
+  /** Absolute path to the new folder on success. */
+  path?: string;
   error?: string;
 }
 

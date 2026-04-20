@@ -210,3 +210,60 @@ body,
 /* Drag region for hidden-inset titlebar */
 .draggable { -webkit-app-region: drag; }
 .no-drag { -webkit-app-region: no-drag; }
+
+/* ────────────────────────────────────────────────────────────────────────
+   X (Twitter) styled feed chrome
+   ────────────────────────────────────────────────────────────────────────
+   These classes apply only to the FeedPane + Card — they hard-code X's
+   palette (#e7e9ea / #71767b / #2f3336 etc) so the pane feels like the
+   real X client instead of inheriting our ink/line tokens.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* Entire card hover — very subtle white wash, exactly like X does it. */
+.x-card {
+  transition: background-color 180ms var(--ease-out);
+}
+.x-card:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* "More" button in the top-right of the card header. */
+.x-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out);
+}
+.x-icon-btn:hover {
+  background-color: rgba(29, 155, 240, 0.1);
+  color: #1d9bf0 !important;
+}
+
+/* Tab hover — faint white wash behind the label, like X's For you/Following */
+.x-tab:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Action bar buttons (reply/retweet/like/etc).
+   The `--x-hover` and `--x-hover-bg` CSS custom properties are set
+   inline on the button by React; hover pulls them in so each action
+   gets its own signature color (blue for reply, green for retweet,
+   red for like, blue for bookmark/share/views). */
+.x-action {
+  color: inherit;
+}
+.x-action:hover {
+  color: var(--x-hover, #1d9bf0);
+}
+.x-action:hover .x-action__icon {
+  background-color: var(--x-hover-bg, rgba(29, 155, 240, 0.1));
+}
+
+/* Header collapse/close button — hover with the X blue tint */
+.x-header-btn:hover {
+  background-color: rgba(29, 155, 240, 0.1);
+  color: #1d9bf0 !important;
+}

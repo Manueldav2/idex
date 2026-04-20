@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, shell, nativeTheme } from "electron";
+import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -8,6 +9,8 @@ import {
   type AgentResize,
   type AppConfig,
   type KeychainKey,
+  type ProjectCreateFolderArgs,
+  type ProjectCreateFolderResult,
 } from "@idex/types";
 import { agentHost } from "./agent-host.js";
 import { configStore } from "./config-store.js";
@@ -94,6 +97,79 @@ function registerIpc() {
   ipcMain.handle(IPC.WORKSPACE_WRITE_FILE, async (_, filePath: string, content: string) =>
     workspace.writeFile(filePath, content),
   );
+
+  ipcMain.handle(IPC.PROJECTS_CREATE_FOLDER, async (_, args: ProjectCreateFolderArgs) =>
+    createProjectFolder(args),
+  );
+}
+
+/**
+ * Create a new project folder inside `parentDir`. Validation rules:
+ *   - `parentDir` must be an absolute path that already exists and is a dir.
+ *   - `name` must be non-empty, contain no path separators, and not start
+ *     with a dot. This prevents directory traversal and hidden-folder fakes.
+ *   - The final path must not already exist as a non-empty directory.
+ * The folder is created with `recursive: true` so intermediate parents
+ * (if any) are made on demand.
+ */
+async function createProjectFolder(
+  args: ProjectCreateFolderArgs,
+): Promise<ProjectCreateFolderResult> {
+  const parentDir = args?.parentDir;
+  const name = args?.name;
+  if (!parentDir || typeof parentDir !== "string") {
+    return { ok: false, error: "Missing parent directory" };
+  }
+  if (!path.isAbsolute(parentDir)) {
+    return { ok: false, error: "Parent path must be absolute" };
+  }
+  if (!name || typeof name !== "string") {
+    return { ok: false, error: "Missing folder name" };
+  }
+  const trimmed = name.trim();
+  if (trimmed.length === 0) return { ok: false, error: "Folder name is empty" };
+  if (trimmed.startsWith(".")) return { ok: false, error: "Folder name cannot start with a dot" };
+  if (/[\\/]/.test(trimmed)) return { ok: false, error: "Folder name cannot contain slashes" };
+  if (/[<>:"|?*\u0000-\u001f]/.test(trimmed)) return { ok: false, error: "Folder name has invalid characters" };
+
+  try {
+    const parentStat = await fs.stat(parentDir);
+    if (!parentStat.isDirectory()) {
+      return { ok: false, error: "Parent path is not a directory" };
+    }
+  } catch {
+    return { ok: false, error: "Parent directory does not exist" };
+  }
+
+  const target = path.join(parentDir, trimmed);
+  // Guard against resolved paths escaping the parent (e.g. names containing
+  // just `..` — already caught by the separator check, but double-check).
+  if (!target.startsWith(parentDir)) {
+    return { ok: false, error: "Resolved path escapes parent directory" };
+  }
+
+  try {
+    const existing = await fs.stat(target);
+    if (existing.isDirectory()) {
+      const entries = await fs.readdir(target);
+      if (entries.length > 0) {
+        return { ok: false, error: "Folder already exists and is not empty" };
+      }
+      // Empty dir already exists — acceptable, just open it.
+      return { ok: true, path: target };
+    }
+    return { ok: false, error: "A file with that name already exists" };
+  } catch {
+    // ENOENT is the happy path — fall through to create.
+  }
+
+  try {
+    await fs.mkdir(target, { recursive: true });
+    return { ok: true, path: target };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: message };
+  }
 }
 
 app.whenReady().then(() => {

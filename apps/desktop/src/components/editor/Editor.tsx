@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import MonacoEditor, { loader, type OnMount } from "@monaco-editor/react";
-import type { editor as MonacoEditorNs } from "monaco-editor";
-import { useWorkspace, type OpenFile } from "@/store/workspace";
+// We statically import the whole monaco-editor package and hand it to the
+// loader BEFORE any editor mounts. If we were to rely on the default loader,
+// `@monaco-editor/react` would try to fetch https://cdn.jsdelivr.net/... which
+// is blocked by our CSP (`default-src 'self'`) and also unavailable offline.
+import * as monaco from "monaco-editor";
 
 // Vite bundles each Monaco worker as a real worker chunk via `?worker`. We
 // point MonacoEnvironment.getWorker at the matching bundle per language label.
@@ -11,6 +14,8 @@ import CssWorker from "monaco-editor/esm/vs/language/css/css.worker?worker";
 import HtmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
 import TsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
 
+import { useWorkspace, type OpenFile } from "@/store/workspace";
+
 interface MonacoEnvGlobal {
   MonacoEnvironment?: {
     getWorker: (moduleId: string, label: string) => Worker;
@@ -18,17 +23,23 @@ interface MonacoEnvGlobal {
 }
 
 /**
- * Point @monaco-editor/react at the bundled `monaco-editor` package so Vite
- * resolves worker assets locally rather than pulling the CDN build (the CSP
- * in index.html doesn't allow random script origins, and we want to work
- * offline). We also register MonacoEnvironment up-front so Monaco uses our
- * pre-bundled worker chunks instead of the default AMD loader.
+ * Wire up Monaco for a packaged Electron app running under `file://`.
+ *
+ * This MUST run at module import time — before any `<MonacoEditor />` renders —
+ * because `@monaco-editor/react` kicks off its own loader the moment the
+ * component mounts. If `loader.config({ monaco })` has not been called by
+ * then, it falls back to fetching from jsdelivr, which our CSP blocks and
+ * which doesn't work offline anyway. Putting this in a `useEffect` was the
+ * root cause of the "editor hangs on spinner" bug.
  */
-let monacoConfigured = false;
-function configureMonaco() {
-  if (monacoConfigured) return;
-  monacoConfigured = true;
-  (self as unknown as MonacoEnvGlobal).MonacoEnvironment = {
+(function bootstrapMonacoOnce() {
+  const g = self as unknown as MonacoEnvGlobal & {
+    __idexMonacoBooted?: boolean;
+  };
+  if (g.__idexMonacoBooted) return;
+  g.__idexMonacoBooted = true;
+
+  g.MonacoEnvironment = {
     getWorker(_moduleId: string, label: string): Worker {
       switch (label) {
         case "json":
@@ -49,14 +60,13 @@ function configureMonaco() {
       }
     },
   };
-  // Dynamic import so Vite can code-split the Monaco bundle out of the
-  // initial JS payload.
-  void import("monaco-editor").then((mod) => {
-    loader.config({ monaco: mod });
-  });
-}
 
-const IDEX_THEME: MonacoEditorNs.IStandaloneThemeData = {
+  // Hand the bundled monaco instance to @monaco-editor/react so it skips
+  // its CDN loader entirely.
+  loader.config({ monaco });
+})();
+
+const IDEX_THEME: monaco.editor.IStandaloneThemeData = {
   base: "vs-dark",
   inherit: true,
   rules: [],
@@ -81,6 +91,15 @@ const IDEX_THEME: MonacoEditorNs.IStandaloneThemeData = {
   },
 };
 
+// Define the theme once, as soon as monaco is available, so it's ready the
+// instant the first editor mounts (avoids a flash of the default vs-dark).
+try {
+  monaco.editor.defineTheme("idex-dark", IDEX_THEME);
+} catch {
+  // Some HMR paths re-execute module code; defineTheme tolerates duplicates
+  // but we swallow any transient error to keep module init resilient.
+}
+
 interface Props {
   file: OpenFile;
 }
@@ -88,17 +107,30 @@ interface Props {
 export function Editor({ file }: Props) {
   const updateContent = useWorkspace((s) => s.updateContent);
   const save = useWorkspace((s) => s.save);
-  const editorRef = useRef<MonacoEditorNs.IStandaloneCodeEditor | null>(null);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
-  // Ensure Monaco boots lazily on first mount.
+  // Safety net: if Monaco has not mounted after 3 seconds, swap to a plain
+  // textarea so the user is never staring at a spinner forever. This is a
+  // last-resort escape hatch — with the loader wired correctly above, it
+  // should essentially never trigger.
+  const [mounted, setMounted] = useState(false);
+  const [fallback, setFallback] = useState(false);
   useEffect(() => {
-    configureMonaco();
-  }, []);
+    if (mounted) return;
+    const timer = window.setTimeout(() => {
+      if (!mounted) {
+        console.warn("[idex] Monaco did not mount within 3s; falling back to textarea.");
+        setFallback(true);
+      }
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [mounted]);
 
-  const handleMount: OnMount = useCallback((editor, monaco) => {
+  const handleMount: OnMount = useCallback((editor, monacoInstance) => {
     editorRef.current = editor;
-    monaco.editor.defineTheme("idex-dark", IDEX_THEME);
-    monaco.editor.setTheme("idex-dark");
+    monacoInstance.editor.defineTheme("idex-dark", IDEX_THEME);
+    monacoInstance.editor.setTheme("idex-dark");
+    setMounted(true);
   }, []);
 
   // Wire ⌘S / Ctrl+S to save the active file. We use a capturing key handler
@@ -115,6 +147,26 @@ export function Editor({ file }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [file.path, save]);
+
+  if (fallback) {
+    return (
+      <div className="relative flex-1 min-h-0 bg-ink-0 flex flex-col">
+        <div className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.24em] text-amber-400/80 border-b border-line shrink-0">
+          editor fallback · monaco unavailable
+        </div>
+        <textarea
+          spellCheck={false}
+          value={file.content}
+          onChange={(e) => updateContent(file.path, e.target.value)}
+          className="flex-1 min-h-0 w-full resize-none bg-ink-0 text-text-primary font-mono text-[13px] leading-[1.55] px-4 py-3 outline-none border-0"
+          style={{
+            fontFamily: '"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace',
+            tabSize: 2,
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex-1 min-h-0 bg-ink-0">

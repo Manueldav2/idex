@@ -107,27 +107,66 @@ export function SessionView({ data, active }: Props) {
 
     // Send xterm keystrokes → PTY (raw). Detect Enter-with-typed-content
     // as a user submission → expand feed + push user_input event.
+    //
+    // `data` can be a single keystroke OR a pasted blob containing many
+    // characters and embedded newlines. We iterate character-by-character
+    // so pastes don't slip past the line buffer.
+    const commitSubmission = () => {
+      const submitted = lineBufferRef.current.trim();
+      lineBufferRef.current = "";
+      if (submitted.length === 0) return;
+      // Push the user event + force the feed to expand + kick off a fresh
+      // curate pass. This is the core product flow: user sends a prompt,
+      // feed arrives. Don't let anything silently swallow it.
+      try {
+        useAgent.getState().pushUserEvent(sessionId, submitted);
+        useFeed.getState().setState("expanded");
+        useFeed.getState().refresh(sessionId);
+      } catch (e) {
+        console.error("[idex] feed expand failed", e);
+      }
+    };
+
     const onTermData = term.onData((data) => {
-      // If this session isn't active (background tab), never forward
-      // keystrokes — xterm itself wouldn't be receiving them in a
-      // display:none container, but some auto-replay paths can still fire.
       if (!activeRef.current) return;
       // Any keystroke from the user cancels the pending auto-accept and
       // marks the session as "user has interacted" forever.
       userHasTypedRef.current = true;
+      // Always forward raw bytes to the PTY first — this is what Claude
+      // Code actually reads.
       void ipc().agent.input({ sessionId, text: data });
-      if (data === "\r" || data === "\n") {
-        const submitted = lineBufferRef.current.trim();
-        lineBufferRef.current = "";
-        if (submitted.length > 0) {
-          useAgent.getState().pushUserEvent(sessionId, submitted);
-          useFeed.getState().setState("expanded");
-          useFeed.getState().refresh(sessionId);
+
+      // Now update our local line buffer, one character at a time, so
+      // we handle both single keystrokes AND pasted blobs uniformly.
+      // An ANSI escape sequence starts with ESC (\x1b); we don't try to
+      // parse it as text but we also don't want its bytes poisoning the
+      // buffer — arrow keys shouldn't show up as typed characters.
+      let inEscape = false;
+      for (let i = 0; i < data.length; i++) {
+        const ch = data[i]!;
+        if (inEscape) {
+          // Very loose: skip until the next letter (CSI sequences end in
+          // an alphabetic final byte). Good enough to not pollute the
+          // line buffer with random bytes.
+          if (/[a-zA-Z~]/.test(ch)) inEscape = false;
+          continue;
         }
-      } else if (data === "\u007f" || data === "\b") {
-        lineBufferRef.current = lineBufferRef.current.slice(0, -1);
-      } else if (data.length === 1 && data >= " ") {
-        lineBufferRef.current += data;
+        if (ch === "\x1b") {
+          inEscape = true;
+          continue;
+        }
+        if (ch === "\r" || ch === "\n") {
+          commitSubmission();
+          continue;
+        }
+        if (ch === "\u007f" || ch === "\b") {
+          lineBufferRef.current = lineBufferRef.current.slice(0, -1);
+          continue;
+        }
+        // Accept any printable character (including tabs and unicode).
+        if (ch >= " " || ch === "\t") {
+          lineBufferRef.current += ch;
+        }
       }
     });
 

@@ -1,7 +1,25 @@
 import { create } from "zustand";
-import type { FileNode } from "@idex/types";
+import { RECENT_PROJECTS_MAX, type FileNode, type RecentProject } from "@idex/types";
 import { ipc } from "@/lib/ipc";
 import { useSettings } from "./settings";
+
+/**
+ * Shared helper: bump `path` to the head of a recents list, drop LRU over
+ * the cap. Exported so the projects store can reuse the exact same logic
+ * (and we have a single source of truth for ordering).
+ */
+function bumpRecents(
+  current: RecentProject[],
+  path: string,
+  now: number,
+): RecentProject[] {
+  const existing = current.find((p) => p.path === path);
+  const next: RecentProject = existing
+    ? { ...existing, lastOpened: now }
+    : { path, lastOpened: now };
+  const rest = current.filter((p) => p.path !== path);
+  return [next, ...rest].slice(0, RECENT_PROJECTS_MAX);
+}
 
 export interface OpenFile {
   path: string;
@@ -105,7 +123,15 @@ export const useWorkspace = create<WorkspaceStore>((set, get) => ({
     const result = await ipc().workspace.open();
     if (!result) return;
     await get().loadWorkspace(result.path);
-    await useSettings.getState().patch({ workspacePath: result.path });
+    // Bump into recents + persist active path in one patch so the launcher
+    // and sidebar stay in sync when the user opens via the OS picker.
+    const settings = useSettings.getState();
+    const currentRecents = settings.config.recentProjects ?? [];
+    const nextRecents = bumpRecents(currentRecents, result.path, Date.now());
+    await settings.patch({
+      workspacePath: result.path,
+      recentProjects: nextRecents,
+    });
   },
 
   async loadWorkspace(rootPath) {
@@ -130,6 +156,16 @@ export const useWorkspace = create<WorkspaceStore>((set, get) => ({
   },
 
   async openFile(path) {
+    // Opening a file is a commitment to look at it, so snap the cockpit into
+    // Editor mode. When the Sidebar is visible in Agent mode this is what
+    // "click a file → see it in the editor" expects; when already in Editor
+    // mode the patch is a no-op (mode === "editor" early-returns inside
+    // Cockpit's setMode). Fire-and-forget so we don't stall the read.
+    const settings = useSettings.getState();
+    if (settings.config.mode !== "editor") {
+      void settings.patch({ mode: "editor" });
+    }
+
     const existing = get().openFiles.find((f) => f.path === path);
     if (existing) {
       set({ activePath: path });

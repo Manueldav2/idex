@@ -46,10 +46,14 @@ export default defineConfig({
   },
   // Monaco ships its own web workers (editor + per-language). Vite will hoist
   // them into the bundle when we pre-bundle them here; the worker output is
-  // emitted as hashed JS under the normal build `outDir`.
+  // emitted as hashed JS under the normal build `outDir`. We also pre-bundle
+  // the main `monaco-editor` module so `import * as monaco from "monaco-editor"`
+  // is ready at module-eval time and we can hand it to @monaco-editor/react's
+  // `loader.config` synchronously, skipping its default CDN loader.
   optimizeDeps: {
     include: [
       "@monaco-editor/react",
+      "monaco-editor",
       "monaco-editor/esm/vs/editor/editor.worker?worker",
       "monaco-editor/esm/vs/language/json/json.worker?worker",
       "monaco-editor/esm/vs/language/css/css.worker?worker",

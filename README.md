@@ -1,3 +1,14 @@
+<div align="center">
+  <img src=".github/banner.svg" alt="IDEX — Code while you scroll. The IDE that watches the wait." width="100%" />
+
+  <p>
+    <a href="https://github.com/Manueldav2/idex/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Manueldav2/idex/ci.yml?branch=master&label=CI&style=flat-square" alt="CI"/></a>
+    <img src="https://img.shields.io/github/license/Manueldav2/idex?style=flat-square" alt="MIT License" />
+    <img src="https://img.shields.io/badge/platform-macOS-black?style=flat-square" alt="macOS" />
+    <img src="https://img.shields.io/badge/status-Phase%201-3D7BFF?style=flat-square" alt="Phase 1" />
+  </p>
+</div>
+
 # IDEX — Interactive Dev Experience
 
 > The IDE that watches the wait. Code while you scroll.

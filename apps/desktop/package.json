@@ -13,9 +13,6 @@
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0 || true"
   },
   "dependencies": {
-    "@idex/adapters": "workspace:*",
-    "@idex/curator": "workspace:*",
-    "@idex/types": "workspace:*",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "framer-motion": "^11.15.0",
@@ -27,6 +24,9 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@idex/adapters": "workspace:*",
+    "@idex/curator": "workspace:*",
+    "@idex/types": "workspace:*",
     "@tailwindcss/postcss": "^4.0.0",
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^22.10.5",

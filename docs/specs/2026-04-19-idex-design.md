@@ -27,7 +27,7 @@ Examples of the contextual prediction the feed must do:
 ### Why now
 
 - Coding-agent wait time is the single most under-monetized attention surface in dev tooling (everyone else is chasing the agent itself).
-- Composio + X + LLM curation is now cheap and reliable enough to do this in <2s per prompt.
+- Composio + X + LLM curation is now cheap and reliable enough to render a useful feed within the typical 5-30s agent generation window. Target: curator returns top 15 cards within **~1.5s p50, ~3s p95**. If the curator misses the window, IDEX shows cached/popular fallback cards from a local rotation.
 - An ad-supported dev tool is feasible because **trygravity.ai** (already adopted by BetterBot in production) is a contextual ad network purpose-built for AI surfaces — zero-latency, native-feeling.
 
 ### Non-goals (v1)
@@ -52,7 +52,7 @@ Examples of the contextual prediction the feed must do:
 | Color palette | `--ink-0 #0A0B0E`, `--ink-1 #13151B`, `--ink-2 #1C1F28`, `--line #22252F`, `--text-primary #F2F4F7`, `--text-secondary #8B92A5`, `--accent #3D7BFF` |
 | Typography | Inter (UI/display), JetBrains Mono (terminal/code), `font-variant-numeric: tabular-nums` for all numbers |
 | Conversation surface | No bubbles, no avatars. `>` prefix for user, full-width mono for agent (moda.dev pattern). |
-| Monetization | trygravity.ai contextual ads, slotted into feed at positions 4 and 9. *Out of v1 scope; wire into v1.1.* |
+| Monetization | trygravity.ai contextual ads, slotted into feed at positions 4 and 9. **Wired in v1.0 behind a feature flag (default OFF); enabled in v1.1 once user base + Gravity approval lands.** |
 | License | MIT, OSS, repo at `github.com/devvcore/idex` (TBD) |
 
 ---
@@ -101,6 +101,40 @@ Examples of the contextual prediction the feed must do:
 │   └──────────────────┘            └──────────────────────┘      │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 3.5 Repo layout (monorepo, pnpm workspaces)
+
+```
+idex/
+├── apps/
+│   ├── desktop/              # Electron app (main + renderer)
+│   │   ├── electron/         # Main process source
+│   │   ├── src/              # Renderer (React)
+│   │   ├── package.json
+│   │   └── electron-builder.json
+│   └── landing/              # Landing site (Vite + React)
+│       ├── src/
+│       ├── components/ui/    # 21st.dev / Aceternity copies
+│       └── package.json
+├── packages/
+│   ├── types/                # Shared TS types (IPC, Card, ContextEvent)
+│   ├── adapters/             # Agent CLI adapters (Claude Code, Codex, Freebuff)
+│   └── curator/              # Curator pipeline (LLM call + ranking)
+├── docs/
+│   ├── specs/                # Design specs
+│   └── plans/                # Implementation plans
+├── references/               # Reference UI components, sample data
+│   └── ui/
+├── package.json              # Workspace root
+├── pnpm-workspace.yaml
+└── tsconfig.base.json
+```
+
+User config and secrets live OUTSIDE the repo:
+- `~/.idex/config.json` — non-secret settings + `connectedAccountId`
+- OS keychain (via `keytar`) — `composioApiKey`, `openRouterApiKey`
 
 ---
 
@@ -203,11 +237,41 @@ Card structure:
 - Top-right: `↗ open in X` chip
 - Bottom: 11px `--text-secondary` relevance chip — e.g. *"Why you're seeing this: deliverability is critical for cold email systems."*
 
+### 4.5.1 Card data model
+
+```ts
+interface Card {
+  id: string;                        // tweet ID, used as React key
+  source: "twitter" | "starter";     // "starter" = no-X fallback feed
+  url: string;                       // tweet permalink (open-in-X target)
+  oembed: {                          // primary renderer (Twitter widgets.js)
+    html: string;
+    width?: number;
+    height?: number;
+  } | null;                          // null → use fallback renderer below
+  fallback?: {                       // used if oEmbed unavailable / blocked
+    text: string;
+    media?: Array<{ kind: "image" | "video"; url: string; alt?: string }>;
+    author: { name: string; handle: string; avatarUrl?: string };
+    createdAt: string;               // ISO 8601
+  };
+  relevanceReason: string;           // 1-line "Why you're seeing this"
+  score: number;                     // 0..1, ranking signal
+  fetchedAt: number;                 // ms epoch, for cache TTL
+  isAd?: boolean;                    // true → render with Gravity ad chrome
+}
+```
+
+The renderer prefers `oembed.html` (Twitter widgets.js iframe). If `oembed === null` (Twitter widget blocked by CSP or rate-limit), it falls back to the structured `fallback` field rendered with our own card chrome.
+
 ### 4.6 Composio Integration
 
-- First run → user clicks **Connect X** → opens Composio OAuth in default browser → redirects back via `idex://oauth/callback` deep link → token stored in OS keychain (Keytar).
-- Runtime: Curator HTTP service calls Composio MCP endpoint `https://mcp.composio.dev/twitter` with our Composio API key + the user's X OAuth token.
-- Rate-limit handling: token-bucket per-user (300 calls/15min), stale-while-revalidate cache (15-min TTL keyed on query string).
+- **OAuth flow:** First run → user clicks **Connect X** → IDEX calls Composio's `POST /api/v3/connected_accounts` to initiate, opens the returned `redirectUrl` (Composio's hosted authorization portal) in the default browser → user authorizes on X → Composio stores the OAuth token server-side and the user is shown a "you can close this tab" confirmation → IDEX polls `GET /api/v3/connected_accounts/{id}` until `status === "ACTIVE"` → stores the `connectedAccountId` (a non-secret reference) in `~/.idex/config.json`.
+- **No deep-link required for v1** — polling avoids the `idex://` protocol-registration race and works in dev (multiple installs).
+- **Runtime:** Curator service calls Composio's REST tool-execution API at `POST https://backend.composio.dev/api/v3/actions/TWITTER_SEARCH_TWEETS/execute` with `X-API-Key` header (Composio API key from keychain) and body `{ "connectedAccountId": "<id>", "input": { "query": "<x search>", "max_results": 10 } }`. We are NOT running an MCP client; Composio's REST API is simpler and lower-latency for server-to-server use.
+- **No-X fallback:** Users who skip the X connection get a curated "starter feed" — ~200 evergreen dev tweets shipped as JSON in the app — keyword-matched against curator topics. Reduces setup friction (R3 mitigation).
+- **Rate-limit handling:** token-bucket per-user (300 calls/15min, mirrors Composio's default), stale-while-revalidate cache (15-min TTL keyed on the query string).
+- **API tier note:** Composio fronts the X API on its side; we don't manage X API tier directly. As of 2026-04, Composio's free tier covers ~500 actions/day, enough for ~30 prompts/day per user. Heavy users may need to upgrade Composio.
 
 ### 4.7 Settings & Auth
 
@@ -310,7 +374,7 @@ No greens, no warm grays. Single accent = blue. **Glassmorphism is in** — see 
 Glass surfaces are used **selectively** — never as wallpaper. Three legitimate uses in v1:
 
 1. **Cockpit header bar** — sticky 56px header with `backdrop-filter: blur(24px) saturate(180%)`, background `rgba(19, 21, 27, 0.65)`, bottom border `1px solid var(--line)`. Provides the "floating chrome" feel without losing legibility.
-2. **Feed expanded-state edge fade** — top and bottom 80px of the feed pane have a vertical gradient mask + subtle blur so cards appear to scroll under glass instead of being clipped at a hard edge.
+2. **Feed expanded-state edge fade** — top and bottom 80px of the feed pane have a **vertical gradient mask only (no blur)** so cards fade out at the edges instead of being hard-clipped. Backdrop blur is reserved for chrome (header, modals) — never over the scrolling card list, which would hurt readability.
 3. **Card hover overlay (post-MVP)** — on `:hover` of a card, a thin glass overlay slides up from the bottom revealing actions (`Save`, `Open in X`, `Hide topic`).
 
 #### Glass token
@@ -394,7 +458,7 @@ Single-page React + Vite (separate from the Electron app), deployed to `idex.dev
 
 | # | Section | Content | Visual |
 |---|---|---|---|
-| 1 | Sticky nav | Logo, (Features, How It Works, FAQ, GitHub), Download CTA | Glass-free flat header, `--ink-0` background, 64px tall |
+| 1 | Sticky nav | Logo, (Features, How It Works, FAQ, GitHub), Download CTA | **Glass header** — `backdrop-filter: blur(24px) saturate(180%)`, `rgba(10, 11, 14, 0.7)` background, bottom `1px --line` divider, 64px tall |
 | 2 | Hero | Headline: **"Code while you scroll."** Subhead: *"The IDE that watches the wait."* CTAs: solid blue Download for Mac (free), ghost View on GitHub | **Scroll-triggered 3D device reveal** using 21st.dev / Aceternity's `ContainerScroll` component (saved to `references/ui/container-scroll-animation.tsx`). Card starts rotated 20° on the X-axis at scale 1.05, settles to 0° at scale 1.0 as the user scrolls. Inside the card: looping 12s product demo video (silent autoplay) showing cursor types prompt → feed slides in from right → user scrolls cards → claude-done → cockpit reclaims. Card chrome uses our `--ink-2` background with a `--line` border and the multi-layer drop-shadow stack from the reference component. |
 | 3 | "Wait time becomes scroll time" | Pitch the core feature | Animated mock of peek→expand transition |
 | 4 | "Three agents, one cockpit" | Agent picker UI | Mock showing Claude Code / Codex / Freebuff radio cards |
@@ -441,7 +505,7 @@ Setup is skippable per-step (user can start with no feed and configure later).
 | Single-window, single-session | Multi-tab / multi-project |
 | User logs into X once via Composio OAuth | Multi-account |
 | Open source MIT, BYO API keys | Hosted/free-tier |
-| Trygravity.ai ads | Ad slots in v1.1, not v1.0 |
+| Trygravity.ai ads enabled by default | (feature-flagged in code v1.0, OFF until v1.1) |
 | Manual scroll + 4s autoscroll | Gesture controls (swipe, double-tap) |
 
 ---
@@ -450,14 +514,22 @@ Setup is skippable per-step (user can start with no feed and configure later).
 
 | # | Question / risk | Mitigation |
 |---|---|---|
-| Q1 | Does Freebuff expose a clean done-event boundary, or do we need 300ms idle fallback only? | Inspect `freebuff` CLI output during build; contribute upstream if needed |
-| Q2 | Composio's Twitter MCP rate limits — 300/15min per user enough? | Stale-while-revalidate cache + token-bucket; if not enough, batch-fetch 15 cards once vs streaming |
-| Q3 | GLM-4.6 latency at p95 — needs to be <500ms to feed cards before agent finishes typical short prompts | Benchmark on real prompts during build; fall back to Gemini 3 Flash Lite if too slow |
-| R1 | Twitter/X may block embedded oEmbed if usage exceeds a threshold | Have a fallback custom renderer using direct media URLs from Composio |
-| R2 | Some agent CLIs may print prompts in a non-detectable way | Use multiple detection heuristics + idle timeout fallback |
-| R3 | trygravity.ai may not approve a brand-new dev tool with no traffic at launch | Ship v1 without ads, accumulate users, then apply |
-| R4 | Devs hate ads → backlash if poorly placed | Make feed-only ads, not agent-output-adjacent. Allow toggle in settings (transparency). |
-| R5 | "Curator" hallucinates irrelevant queries → bad feed → uninstall | Add user thumbs-up/down on cards; tune prompt over time |
+| Q1 | Does Freebuff expose a clean done-event boundary, or do we need 300ms idle fallback only? | Inspect `freebuff` CLI output during Phase 2; contribute upstream if needed |
+| Q2 | Composio rate limits per user — 300/15min enough? | Stale-while-revalidate cache + token-bucket; batch-fetch 15 cards once vs streaming |
+| Q3 | GLM-4.6 p95 latency target ~3s — needs benchmark | Benchmark in Phase 2 milestone; fallback path → Gemini 3 Flash Lite via OpenRouter if too slow. While slow, show starter-feed cards. |
+| Q4 | OpenRouter key requirement during setup gates adoption | Ship with starter-feed mode that works WITHOUT a key; surface "Connect for smarter feed" CTA in cockpit |
+| Q5 | Per-tweet `relevance` score in ranking — how computed? | v1: Composio's native search-relevance score (returned in MCP response) + recency. v1.1: optional second GLM pass for re-rank. |
+| R1 | Twitter/X may block embedded oEmbed inside Electron CSP | Card data model (§4.5.1) supports an explicit `fallback` renderer using direct media URLs from Composio. CSP allowlists `*.twitter.com`. |
+| R2 | Some agent CLIs may print prompts in a non-detectable way | Multiple detection heuristics + idle-timeout fallback + per-adapter test fixtures captured from real CLI runs |
+| R3 | trygravity.ai may not approve a brand-new dev tool with no traffic at launch | v1.0 ships with ads feature-flagged OFF; ad slots present but disabled until approval |
+| R4 | Devs hate ads → backlash if poorly placed | Feed-only ads, never agent-output-adjacent; transparent settings toggle |
+| R5 | Curator hallucinates irrelevant queries → bad feed → uninstall | Thumbs-up/down on cards; opt-in telemetry to tune prompt over time |
+| R6 | Apple Gatekeeper / notarization adds days to first release | Apply for Apple Developer ID **before** Phase 3; budget 5 days for first notarization pass |
+| R7 | Coding-agent CLI output formats drift between versions (Claude Code shipped 5+ TUI revisions in 2025) | Pin tested versions in `package.json` engines field; CI fixture-compare against live CLI weekly |
+| R8 | Forwarding user prompts (which may include proprietary code) to OpenRouter + Composio creates legal exposure | Mandatory in-app disclosure on first run before any prompt is sent: "Your prompts and feed queries are sent to OpenRouter (GLM-4.6) and Composio (X search). Do not paste secrets." Settings has a "panic mode" that disables curator entirely. |
+| R9 | trygravity.ai is a young company; pricing or platform shutdown would invalidate the monetization story | Code keeps the ad slot abstraction generic — could swap to Carbon Ads or self-served Stripe-supported sponsorships if Gravity changes |
+| R10 | `node-pty` requires per-Electron-version + per-arch native rebuild; macOS first means Apple Silicon AND Intel | Use `electron-rebuild` in postinstall; ship universal binaries via `electron-builder` |
+| R11 | Three agent adapters at launch is the largest scope risk | Phase 1 ships **Claude Code only**; Phase 2 adds Codex; Phase 3 adds Freebuff. v1.0 release waits for all three. |
 
 ---
 
@@ -517,8 +589,8 @@ Add components by browsing https://21st.dev/ during the implementation phase. Ea
     "react-dom": "^19.0.0",
     "vite": "^6.x",
     "node-pty": "^1.x",                // Agent subprocess + PTY
-    "xterm": "^5.x",                   // Terminal renderer
-    "xterm-addon-fit": "^0.10.x",
+    "@xterm/xterm": "^5.x",            // Terminal renderer (renamed from xterm)
+    "@xterm/addon-fit": "^0.10.x",
     "framer-motion": "^11.x",          // Peek↔expanded transitions
     "tailwindcss": "^4.x",
     "zustand": "^5.x",                 // Settings store

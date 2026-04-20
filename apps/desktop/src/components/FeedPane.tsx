@@ -326,20 +326,54 @@ function EmptyFeedState({ isLoading }: { isLoading: boolean }) {
 }
 
 function PeekStrip({ card, onExpand }: { card?: import("@idex/types").Card; onExpand: () => void }) {
+  const topics = useFeed((s) => s.topics);
+  const isLoading = useFeed((s) => s.isLoading);
+  // Primary label is the top topic the curator is reading right now.
+  // Falls back to the focused card's relevance reason, then to a soft
+  // default so the strip is never empty.
+  const primary = topics[0] ?? card?.relevanceReason?.split(/[.·—]/)[0]?.trim() ?? "feed";
+  const secondary = topics[1] ?? null;
   return (
     <button
       onClick={onExpand}
-      className="w-full h-full flex flex-col items-center justify-center gap-3 group hover:bg-ink-1/60 transition-colors"
-      title={card?.relevanceReason ?? "Open feed"}
+      className="w-full h-full flex flex-col items-center justify-center gap-4 group hover:bg-ink-1/60 transition-colors"
+      title={topics.length > 0 ? `Reading about: ${topics.slice(0, 3).join(", ")}` : "Open feed"}
     >
-      <span className="text-[9px] uppercase tracking-[0.24em] font-mono text-text-secondary group-hover:text-accent transition-colors">
-        feed
-      </span>
-      <div className="peek-pulse size-8 rounded-lg border border-line bg-ink-1 flex items-center justify-center">
-        <span className="size-1.5 rounded-full bg-accent" />
+      {/* Real X logo — monospace glyph drawn as an SVG so it stays crisp
+          at any DPR and doesn't need an icon font. */}
+      <div
+        className={`size-8 flex items-center justify-center transition-all ${
+          isLoading ? "opacity-70" : "opacity-100"
+        } group-hover:scale-110`}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="size-[22px] text-text-primary group-hover:text-accent transition-colors"
+          fill="currentColor"
+          aria-hidden
+        >
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/>
+        </svg>
       </div>
-      <span className="text-[9px] font-mono text-text-secondary/60">
-        {card ? "●" : "○"}
+
+      {/* Current topic, vertically rotated so it fits the thin column
+          without truncating awkwardly. */}
+      {primary && (
+        <div
+          className="flex-1 max-h-[40vh] flex items-center justify-center"
+          style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+        >
+          <span className="text-[11px] font-mono text-text-secondary group-hover:text-text-primary transition-colors tracking-wide whitespace-nowrap">
+            {primary}
+            {secondary && <span className="text-text-tertiary mx-2">·</span>}
+            {secondary && <span className="text-text-tertiary">{secondary}</span>}
+          </span>
+        </div>
+      )}
+
+      {/* Tiny count indicator at the bottom */}
+      <span className="text-[10px] font-mono text-text-tertiary">
+        {card ? "feed" : "·"}
       </span>
     </button>
   );

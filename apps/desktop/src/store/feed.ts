@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Card, FeedState } from "@idex/types";
-import { curate, curateLive } from "@idex/curator";
+import { curate, curateLive, planFromContext } from "@idex/curator";
 import { useAgent } from "./agent";
 
 interface FeedStore {
@@ -8,14 +8,17 @@ interface FeedStore {
   cards: Card[];
   generation: number;
   isLoading: boolean;
+  /** Topics the curator is reading right now (used for the peek-strip label). */
+  topics: string[];
+  /** Short natural-language label of what the curator thinks the user is doing. */
+  intent: string | null;
   bindToAgent: () => () => void;
   refresh: (sessionId?: string) => void;
   setState: (state: FeedState) => void;
 }
 
 // Monotonic request counter outside the store — used to de-dupe stale
-// curateLive() resolutions when refresh() is called rapidly (Enter spam).
-// The last refresh wins; earlier resolutions are ignored.
+// curateLive() resolutions when refresh() is called rapidly.
 let _liveReqCounter = 0;
 
 export const useFeed = create<FeedStore>((set, get) => ({
@@ -23,6 +26,8 @@ export const useFeed = create<FeedStore>((set, get) => ({
   cards: [],
   generation: 0,
   isLoading: false,
+  topics: [],
+  intent: null,
 
   bindToAgent() {
     const unsub = useAgent.subscribe((store, prev) => {
@@ -41,19 +46,24 @@ export const useFeed = create<FeedStore>((set, get) => ({
     const session = activeId ? useAgent.getState().sessions[activeId] : null;
     const events = session?.events.slice(-12) ?? [];
 
-    // Immediate synchronous starter-based cards so the feed never looks empty.
+    // Extract plan topics synchronously for the peek-strip label, even while
+    // the async curate runs.
+    const plan = planFromContext({ recentEvents: events });
+    const topics = [...plan.directTopics, ...plan.adjacentTopics].slice(0, 6);
+
+    // Immediate synchronous starter-based cards.
     const { cards: quickCards } = curate({ recentEvents: events });
     set((s) => ({
       cards: quickCards,
       generation: s.generation + 1,
       isLoading: true,
+      topics,
+      intent: plan.intent,
     }));
 
-    // Request ID is captured BEFORE the async kicks off; when it resolves
-    // we check that no newer request has started (race-safe).
     const myReq = ++_liveReqCounter;
     void curateLive({ recentEvents: events }).then(({ cards }) => {
-      if (myReq !== _liveReqCounter) return; // stale
+      if (myReq !== _liveReqCounter) return;
       set((s) => ({
         cards,
         generation: s.generation + 1,

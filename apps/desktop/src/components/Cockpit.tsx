@@ -69,12 +69,7 @@ export function Cockpit() {
               </span>
             </div>
           </div>
-          <div className="no-drag flex items-center gap-2">
-            <span className="text-[10px] font-mono text-text-secondary hidden sm:inline">
-              <kbd className="px-1 py-0.5 rounded border border-line mr-0.5">⌘T</kbd>new
-              <kbd className="px-1 py-0.5 rounded border border-line mx-1">⌘W</kbd>close
-              <kbd className="px-1 py-0.5 rounded border border-line">⌘1-9</kbd>switch
-            </span>
+          <div className="no-drag flex items-center gap-1">
             <button
               onClick={() => setFeedState(feedState === "peek" ? "expanded" : "peek")}
               title={feedState === "peek" ? "Expand feed" : "Collapse feed"}
@@ -112,23 +107,26 @@ export function Cockpit() {
           )}
         </div>
 
-        <footer className="border-t border-line bg-ink-1 px-6 py-2.5 flex items-center justify-between text-[11px] font-mono text-text-secondary shrink-0">
-          <div className="flex items-center gap-4">
-            <span>
-              <kbd className="px-1.5 py-0.5 rounded border border-line font-mono">⌃C</kbd> interrupt
+        <footer className="border-t border-line bg-ink-1 px-6 py-2 flex items-center justify-between text-[10px] font-mono text-text-secondary shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="opacity-70">
+              <kbd className="px-1 py-0.5 rounded border border-line">⌘T</kbd> new
             </span>
-            <span>
-              <kbd className="px-1.5 py-0.5 rounded border border-line font-mono">⌃D</kbd> exit
+            <span className="opacity-70">
+              <kbd className="px-1 py-0.5 rounded border border-line">⌘W</kbd> close
             </span>
+            <span className="opacity-70">
+              <kbd className="px-1 py-0.5 rounded border border-line">⌘1-9</kbd> switch
+            </span>
+            <span className="opacity-50 ml-2">·</span>
             <span>{order.length} session{order.length === 1 ? "" : "s"}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span>feed {config.feedEnabled ? "on" : "off"}</span>
             <button
               onClick={() => void patchConfig({ feedEnabled: !config.feedEnabled })}
-              className="press-feedback text-accent hover:brightness-125 underline-offset-2 hover:underline"
+              className="press-feedback opacity-70 hover:opacity-100 hover:text-accent"
             >
-              toggle
+              feed {config.feedEnabled ? "on" : "off"}
             </button>
           </div>
         </footer>

@@ -53,8 +53,8 @@ export function FeedPane() {
     );
   }
 
-  const targetWidth = state === "expanded" ? "55%" : "160px";
-  const collapsedWidth = "160px";
+  const targetWidth = state === "expanded" ? "420px" : "72px";
+  const collapsedWidth = "72px";
 
   return (
     <motion.aside
@@ -69,9 +69,8 @@ export function FeedPane() {
         minWidth: collapsedWidth,
         flexShrink: 0,
         flexGrow: 0,
-        flexBasis: collapsedWidth,
       }}
-      className="relative flex flex-col bg-ink-0 border-l-2 border-accent/20 overflow-hidden"
+      className="relative flex flex-col bg-ink-0 border-l border-line overflow-hidden"
     >
       {state === "peek" && (
         <PeekStrip
@@ -134,29 +133,18 @@ function PeekStrip({ card, onExpand }: { card?: import("@idex/types").Card; onEx
   return (
     <button
       onClick={onExpand}
-      className="w-full h-full flex flex-col items-center justify-between py-5 px-3 group hover:bg-ink-1/40 transition-colors"
+      className="w-full h-full flex flex-col items-center justify-center gap-3 group hover:bg-ink-1/60 transition-colors"
       title={card?.relevanceReason ?? "Open feed"}
     >
-      <div className="flex flex-col items-center gap-2 text-text-secondary group-hover:text-accent transition-colors">
-        <ChevronLeft className="size-4" />
-        <span className="text-[9px] uppercase tracking-[0.2em] font-mono -rotate-90 origin-center whitespace-nowrap mt-3">
-          feed
-        </span>
+      <span className="text-[9px] uppercase tracking-[0.24em] font-mono text-text-secondary group-hover:text-accent transition-colors">
+        feed
+      </span>
+      <div className="peek-pulse size-8 rounded-lg border border-line bg-ink-1 flex items-center justify-center">
+        <span className="size-1.5 rounded-full bg-accent" />
       </div>
-      <div className="peek-pulse relative flex-1 w-full my-4 rounded-xl border border-line overflow-hidden bg-ink-1">
-        {card?.fallback?.media?.[0]?.url && (
-          <img src={card.fallback.media[0].url} alt="" className="w-full h-full object-cover" style={{ filter: "blur(4px) brightness(0.55)" }} />
-        )}
-        {(!card?.fallback?.media || card?.fallback?.media?.length === 0) && card?.fallback?.text && (
-          <div className="w-full h-full p-2 text-[8px] leading-tight text-text-secondary/70 overflow-hidden" style={{ filter: "blur(1px)" }}>
-            {card.fallback.text.slice(0, 200)}
-          </div>
-        )}
-        <div className="absolute inset-0 ring-1 ring-inset ring-accent/20 rounded-xl pointer-events-none" />
-      </div>
-      <div className="text-[9px] font-mono text-text-secondary/60">
+      <span className="text-[9px] font-mono text-text-secondary/60">
         {card ? "●" : "○"}
-      </div>
+      </span>
     </button>
   );
 }

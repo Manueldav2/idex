@@ -129,7 +129,7 @@ export function SessionView({ data, active }: Props) {
       ref={containerRef}
       onClick={() => xtermRef.current?.focus()}
       style={{ display: active ? "block" : "none" }}
-      className="h-full w-full px-8 pt-6 pb-4 overflow-hidden cursor-text"
+      className="h-full w-full px-10 pt-8 pb-6 overflow-hidden cursor-text"
     />
   );
 }

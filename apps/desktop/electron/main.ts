@@ -42,6 +42,14 @@ function createMainWindow() {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 
+  // Log renderer load failures to main stdout (helpful when debugging a blank window)
+  mainWindow.webContents.on("did-fail-load", (_, code, desc, url) => {
+    console.error("[idex] did-fail-load", { code, desc, url });
+  });
+  mainWindow.webContents.on("render-process-gone", (_, details) => {
+    console.error("[idex] render-process-gone", details);
+  });
+
   mainWindow.on("closed", () => {
     mainWindow = null;
     agentHost.killAll();

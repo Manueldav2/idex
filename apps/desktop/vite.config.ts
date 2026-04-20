@@ -6,6 +6,7 @@ import renderer from "vite-plugin-electron-renderer";
 import path from "node:path";
 
 export default defineConfig({
+  base: "./",
   plugins: [
     react(),
     tailwindcss(),
@@ -17,6 +18,7 @@ export default defineConfig({
             outDir: "dist-electron",
             rollupOptions: {
               external: ["electron", "node-pty", "keytar"],
+              output: { format: "cjs", entryFileNames: "[name].js" },
             },
           },
         },
@@ -27,7 +29,10 @@ export default defineConfig({
         vite: {
           build: {
             outDir: "dist-electron",
-            rollupOptions: { external: ["electron"] },
+            rollupOptions: {
+              external: ["electron"],
+              output: { format: "cjs", entryFileNames: "[name].js" },
+            },
           },
         },
       },

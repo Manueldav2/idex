@@ -1,8 +1,9 @@
 {
   "name": "@idex/desktop",
   "version": "0.1.0",
+  "description": "IDEX desktop app — Chromium cockpit for your coding agent.",
+  "author": "Manny <info@devvcore.com>",
   "private": true,
-  "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",

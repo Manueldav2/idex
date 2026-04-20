@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "generatedAt": "2026-04-19",
+  "cards": [
+    {
+      "id": "starter-001",
+      "topics": ["typescript", "performance", "developer experience"],
+      "url": "https://x.com/mattpocockuk/status/example",
+      "fallback": {
+        "text": "TypeScript tip: 'satisfies' is the operator I reach for the most these days.\n\nIt lets you check that an object matches a type WITHOUT widening or narrowing it.\n\nGet the inference, keep the safety. Cleanest pattern in modern TS.",
+        "media": [],
+        "author": { "name": "Matt Pocock", "handle": "mattpocockuk", "avatarUrl": "https://unavatar.io/twitter/mattpocockuk" },
+        "createdAt": "2026-04-15T14:00:00.000Z"
+      },
+      "relevanceReason": "Modern TypeScript patterns worth knowing while you code"
+    },
+    {
+      "id": "starter-002",
+      "topics": ["ai", "claude", "llm"],
+      "url": "https://x.com/AnthropicAI/status/example",
+      "fallback": {
+        "text": "Claude 4.7 is now available. The 1M context window means you can drop entire codebases in a single prompt and get coherent edits across the whole thing.\n\nWe rebuilt our internal eval harness on it last week. Cuts our turnaround time in half.",
+        "media": [{ "kind": "image", "url": "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=900&q=80" }],
+        "author": { "name": "Anthropic", "handle": "AnthropicAI", "avatarUrl": "https://unavatar.io/twitter/AnthropicAI" },
+        "createdAt": "2026-04-12T09:30:00.000Z"
+      },
+      "relevanceReason": "Latest from the Claude team — relevant to your agent work"
+    },
+    {
+      "id": "starter-003",
+      "topics": ["css", "animation", "design"],
+      "url": "https://x.com/emilkowalski_/status/example",
+      "fallback": {
+        "text": "An underused trick: use clip-path: inset() to animate reveals.\n\nYou can clip from any side, animate the inset values, and get hardware-accelerated reveals without overflow:hidden hacks.\n\nWorks beautifully for hold-to-delete buttons and image reveals.",
+        "media": [{ "kind": "image", "url": "https://images.unsplash.com/photo-1545665277-5937489579f2?w=900&q=80" }],
+        "author": { "name": "Emil Kowalski", "handle": "emilkowalski_", "avatarUrl": "https://unavatar.io/twitter/emilkowalski_" },
+        "createdAt": "2026-04-10T17:45:00.000Z"
+      },
+      "relevanceReason": "Animation techniques that elevate any UI"
+    },
+    {
+      "id": "starter-004",
+      "topics": ["devops", "deployment", "infrastructure"],
+      "url": "https://x.com/dhh/status/example",
+      "fallback": {
+        "text": "Your monolith is fine.\n\nMost of the 'we need microservices' talk is engineers wanting to play with new toys, not actual scaling problems.\n\nA single Postgres can handle the load of nearly every startup. Boring is a feature.",
+        "media": [],
+        "author": { "name": "DHH", "handle": "dhh", "avatarUrl": "https://unavatar.io/twitter/dhh" },
+        "createdAt": "2026-04-09T11:20:00.000Z"
+      },
+      "relevanceReason": "Architecture sanity check"
+    },
+    {
+      "id": "starter-005",
+      "topics": ["ai", "agents", "tools"],
+      "url": "https://x.com/swyx/status/example",
+      "fallback": {
+        "text": "The biggest UX shift in coding agents: people are starting to *trust* multi-step plans.\n\n2024: 'show me a diff'\n2026: 'go fix these 14 things, ping me when done'\n\nThe agent loop is the new IDE.",
+        "media": [{ "kind": "image", "url": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=900&q=80" }],
+        "author": { "name": "swyx", "handle": "swyx", "avatarUrl": "https://unavatar.io/twitter/swyx" },
+        "createdAt": "2026-04-18T08:00:00.000Z"
+      },
+      "relevanceReason": "Industry shift in how devs use AI agents"
+    },
+    {
+      "id": "starter-006",
+      "topics": ["react", "state", "frontend"],
+      "url": "https://x.com/dan_abramov/status/example",
+      "fallback": {
+        "text": "Hot take: most useEffect bugs are state-shape bugs.\n\nIf your effect has 5 dependencies and a guard clause, your state is wrong. Restructure the state until the effect collapses to one dep or disappears entirely.",
+        "media": [],
+        "author": { "name": "Dan Abramov", "handle": "dan_abramov", "avatarUrl": "https://unavatar.io/twitter/dan_abramov" },
+        "createdAt": "2026-04-14T19:10:00.000Z"
+      },
+      "relevanceReason": "React patterns to keep in your head"
+    },
+    {
+      "id": "starter-007",
+      "topics": ["productivity", "writing", "developer life"],
+      "url": "https://x.com/visakanv/status/example",
+      "fallback": {
+        "text": "Build in public means you write down what you tried, what failed, what worked. Six months later you'll have a corpus that the next version of you (and every other dev with the same problem) can search.\n\nThe blog post IS the product moat.",
+        "media": [],
+        "author": { "name": "Visakan Veerasamy", "handle": "visakanv", "avatarUrl": "https://unavatar.io/twitter/visakanv" },
+        "createdAt": "2026-04-11T13:00:00.000Z"
+      },
+      "relevanceReason": "Long-game thinking for indie devs"
+    },
+    {
+      "id": "starter-008",
+      "topics": ["web", "performance", "browsers"],
+      "url": "https://x.com/addyosmani/status/example",
+      "fallback": {
+        "text": "INP > LCP for 2026.\n\nINP measures actual interaction latency — every click, every tap. Optimizing it forces you to fix the long tasks that LCP-only optimization missed.\n\nIf you only watch one Web Vital next year, watch this one.",
+        "media": [{ "kind": "image", "url": "https://images.unsplash.com/photo-1559028012-481c04fa702d?w=900&q=80" }],
+        "author": { "name": "Addy Osmani", "handle": "addyosmani", "avatarUrl": "https://unavatar.io/twitter/addyosmani" },
+        "createdAt": "2026-04-08T15:30:00.000Z"
+      },
+      "relevanceReason": "Performance metrics shifting in 2026"
+    },
+    {
+      "id": "starter-009",
+      "topics": ["tooling", "package manager", "node"],
+      "url": "https://x.com/youyuxi/status/example",
+      "fallback": {
+        "text": "pnpm 10 is genuinely faster than npm AND uses less disk because of content-addressable storage.\n\nEvery project I touch I switch the lockfile. Hasn't bitten me once.",
+        "media": [],
+        "author": { "name": "Evan You", "handle": "youyuxi", "avatarUrl": "https://unavatar.io/twitter/youyuxi" },
+        "createdAt": "2026-04-13T10:00:00.000Z"
+      },
+      "relevanceReason": "You're using pnpm in this project — confirms the choice"
+    },
+    {
+      "id": "starter-010",
+      "topics": ["design", "ui", "components"],
+      "url": "https://x.com/shadcn/status/example",
+      "fallback": {
+        "text": "Copy-paste components > library imports.\n\nYou own the code, you customize without forking, you upgrade by re-copying. Every framework will get to this eventually — shadcn just got there first.",
+        "media": [{ "kind": "image", "url": "https://images.unsplash.com/photo-1561070791-2526d30994b8?w=900&q=80" }],
+        "author": { "name": "shadcn", "handle": "shadcn", "avatarUrl": "https://unavatar.io/twitter/shadcn" },
+        "createdAt": "2026-04-17T20:20:00.000Z"
+      },
+      "relevanceReason": "Component philosophy that scales"
+    },
+    {
+      "id": "starter-011",
+      "topics": ["postgres", "database", "sql"],
+      "url": "https://x.com/tweetfromnitin/status/example",
+      "fallback": {
+        "text": "Postgres learned a lot of new tricks in 17:\n\n- JSON_TABLE for parsing JSON into rows natively\n- Incremental backups\n- Way better vacuum on huge tables\n\nYou probably don't need that NoSQL store.",
+        "media": [],
+        "author": { "name": "Nitin", "handle": "tweetfromnitin", "avatarUrl": "https://unavatar.io/twitter/tweetfromnitin" },
+        "createdAt": "2026-04-07T12:00:00.000Z"
+      },
+      "relevanceReason": "Modern Postgres capabilities"
+    },
+    {
+      "id": "starter-012",
+      "topics": ["security", "auth", "webhooks"],
+      "url": "https://x.com/troyhunt/status/example",
+      "fallback": {
+        "text": "Webhook security checklist:\n\n1. Verify signature (HMAC of the raw body)\n2. Check timestamp (reject > 5 min old)\n3. Idempotency key on your side\n4. Rate limit per source\n5. Log everything\n\nGet 1-3 wrong and you have a replay attack vulnerability.",
+        "media": [],
+        "author": { "name": "Troy Hunt", "handle": "troyhunt", "avatarUrl": "https://unavatar.io/twitter/troyhunt" },
+        "createdAt": "2026-04-16T16:00:00.000Z"
+      },
+      "relevanceReason": "Security patterns relevant when wiring integrations"
+    }
+  ]
+}

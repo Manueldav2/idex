@@ -1,0 +1,38 @@
+{
+  "appId": "com.devvcore.idex",
+  "productName": "IDEX",
+  "directories": {
+    "output": "release/${version}"
+  },
+  "files": [
+    "dist/**/*",
+    "dist-electron/**/*",
+    "package.json"
+  ],
+  "asar": true,
+  "asarUnpack": ["**/node_modules/node-pty/**/*", "**/node_modules/keytar/**/*"],
+  "mac": {
+    "category": "public.app-category.developer-tools",
+    "target": [
+      { "target": "dmg", "arch": ["arm64", "x64"] },
+      { "target": "zip", "arch": ["arm64", "x64"] }
+    ],
+    "icon": "build/icon.png",
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "darkModeSupport": true,
+    "type": "distribution"
+  },
+  "dmg": {
+    "title": "IDEX ${version}",
+    "icon": "build/icon.png",
+    "background": null,
+    "iconSize": 96,
+    "window": { "width": 540, "height": 380 },
+    "contents": [
+      { "x": 130, "y": 220, "type": "file" },
+      { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+    ]
+  },
+  "publish": null
+}

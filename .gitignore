@@ -1,0 +1,43 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Electron build artifacts
+release/
+*.dmg
+*.zip
+
+# secrets / config
+.env
+.env.local
+.env.*.local
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.cursor/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# native rebuilds
+node_modules/.cache/
+electron/node_modules/
+
+# test coverage
+coverage/
+
+# user runtime data (lives outside repo, but defensive)
+.idex/

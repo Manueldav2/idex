@@ -1,0 +1,29 @@
+{
+  "name": "idex",
+  "version": "0.1.0",
+  "private": true,
+  "description": "IDEX — Interactive Dev Experience. A Chromium-shelled cockpit that hosts your coding agent and curates a contextual scroll feed during the wait.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Manny <info@devvcore.com>",
+  "homepage": "https://github.com/Manueldav2/idex",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Manueldav2/idex.git"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' build && pnpm -r --filter './apps/*' build",
+    "dev:desktop": "pnpm --filter @idex/desktop dev",
+    "dev:landing": "pnpm --filter @idex/landing dev",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r exec rm -rf dist node_modules .turbo && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

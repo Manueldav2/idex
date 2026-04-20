@@ -12,7 +12,7 @@ import {
 
 export default function App() {
   return (
-    <div className="bg-ink-0 text-text-primary min-h-screen">
+    <div className="grain bg-ink-0 text-text-primary min-h-screen">
       <Nav />
       <Hero />
       <HowItWorksSection />

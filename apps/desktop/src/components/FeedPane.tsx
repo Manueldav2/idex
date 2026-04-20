@@ -53,7 +53,10 @@ export function FeedPane() {
     );
   }
 
-  const targetWidth = state === "expanded" ? "420px" : "72px";
+  // Expanded state dominates the screen: cockpit shrinks to a PiP-style
+  // left column while the feed fills the rest. This is the picture-in-
+  // picture moment the product is built around.
+  const targetWidth = state === "expanded" ? "75%" : "72px";
   const collapsedWidth = "72px";
 
   return (
@@ -61,8 +64,10 @@ export function FeedPane() {
       initial={{ width: collapsedWidth }}
       animate={{ width: targetWidth }}
       transition={{
-        duration: state === "expanded" ? 0.28 : 0.22,
-        ease: [0.32, 0.72, 0, 1],
+        type: "spring",
+        stiffness: 220,
+        damping: 28,
+        mass: 0.85,
       }}
       style={{
         height: "100%",
@@ -80,19 +85,29 @@ export function FeedPane() {
       )}
 
       <AnimatePresence>
-        {state === "expanded" && cards.length > 0 && (
+        {state === "expanded" && (
           <motion.div
             key="expanded-feed"
-            initial={{ opacity: 0, x: 16 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 16 }}
-            transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
             className="flex flex-col h-full"
           >
             <header className="px-6 py-4 flex items-center justify-between border-b border-line">
-              <div className="flex items-center gap-2 text-[12px] font-mono text-text-secondary">
-                <Sparkles className="size-3.5 text-accent" />
-                Curator · {cards.length} cards
+              <div className="flex items-center gap-2.5">
+                <div className="size-6 rounded-full bg-accent flex items-center justify-center text-[11px] font-bold text-white">
+                  X
+                </div>
+                <span className="text-[14px] font-semibold text-text-primary">For you</span>
+                <span className="text-[11px] font-mono text-text-secondary ml-1">
+                  dev · {cards.length}
+                </span>
+                {useFeed.getState().isLoading && (
+                  <span className="text-[10px] font-mono text-accent uppercase tracking-wider ml-2 animate-pulse">
+                    curating
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => setState("peek")}
@@ -102,26 +117,33 @@ export function FeedPane() {
               </button>
             </header>
 
-            <div
-              ref={scrollerRef}
-              className="flex-1 overflow-y-auto px-6 py-6 flex flex-col items-center gap-6 snap-y snap-mandatory"
-              style={{
-                maskImage:
-                  "linear-gradient(to bottom, transparent 0px, black 80px, black calc(100% - 80px), transparent 100%)",
-                WebkitMaskImage:
-                  "linear-gradient(to bottom, transparent 0px, black 80px, black calc(100% - 80px), transparent 100%)",
-              }}
-            >
-              {cards.map((c, i) => (
-                <div
-                  key={c.id}
-                  className="snap-center w-full flex justify-center"
-                  onClick={() => setFocusedIdx(i)}
-                >
-                  <Card card={c} focused={i === focusedIdx} />
-                </div>
-              ))}
-            </div>
+            {cards.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-text-secondary text-sm">
+                <Sparkles className="size-4 text-accent mr-2 animate-pulse" /> finding something worth reading...
+              </div>
+            ) : (
+              <div
+                ref={scrollerRef}
+                className="flex-1 overflow-y-auto divide-y divide-line"
+              >
+                {cards.map((c, i) => (
+                  <motion.div
+                    key={c.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      delay: i * 0.04,
+                      duration: 0.35,
+                      ease: [0.23, 1, 0.32, 1],
+                    }}
+                    className={i === focusedIdx ? "bg-ink-1/60" : ""}
+                    onClick={() => setFocusedIdx(i)}
+                  >
+                    <Card card={c} focused={i === focusedIdx} />
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

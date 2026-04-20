@@ -1,3 +1,5 @@
-export { curate, planFromContext } from "./curator.js";
+export { curate, curateLive, planFromContext } from "./curator.js";
 export { getStarterCards } from "./starter-feed.js";
+export { searchHackerNews } from "./hn.js";
+export { searchReddit } from "./reddit.js";
 export type { CuratorInput, CuratorPlan } from "./types.js";

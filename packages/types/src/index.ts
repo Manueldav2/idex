@@ -121,7 +121,7 @@ export interface CardFallback {
 
 export interface Card {
   id: string;
-  source: "twitter" | "starter" | "ad";
+  source: "twitter" | "starter" | "ad" | "hackernews" | "reddit";
   url: string;
   oembed: OEmbedPayload | null;
   fallback?: CardFallback;

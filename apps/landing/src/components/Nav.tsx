@@ -1,33 +1,39 @@
-import { Github, Download } from "lucide-react";
+import { Github } from "lucide-react";
 
 export function Nav() {
   return (
-    <nav className="glass fixed top-0 inset-x-0 z-40 border-b border-line">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <a href="#" className="flex items-center gap-2 group">
-          <pre className="font-mono text-[10px] leading-[10px] text-text-secondary group-hover:text-accent transition-colors">{`┌────┐
-│IDEX│
-└────┘`}</pre>
+    <nav className="glass fixed top-0 inset-x-0 z-40 rule-bottom">
+      <div className="max-w-[1400px] mx-auto px-8 h-16 grid grid-cols-[1fr_auto_1fr] items-center">
+        <a href="#" className="flex items-center gap-2.5 group w-fit">
+          <span className="display text-[18px] font-medium text-text-primary tracking-tight">
+            idex
+          </span>
+          <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-text-tertiary group-hover:text-accent transition-colors">
+            v0.1
+          </span>
         </a>
-        <div className="hidden md:flex items-center gap-6 text-sm text-text-secondary">
-          <a href="#how" className="hover:text-text-primary transition-colors">How it works</a>
+        <div className="hidden md:flex items-center gap-10 text-[13px] text-text-secondary font-medium">
+          <a href="#work" className="hover:text-text-primary transition-colors">Work</a>
           <a href="#agents" className="hover:text-text-primary transition-colors">Agents</a>
-          <a href="#faq" className="hover:text-text-primary transition-colors">FAQ</a>
+          <a href="#faq" className="hover:text-text-primary transition-colors">Q &amp; A</a>
           <a
             href="https://github.com/Manueldav2/idex"
             target="_blank"
             rel="noreferrer"
             className="hover:text-text-primary transition-colors inline-flex items-center gap-1.5"
           >
-            <Github className="size-4" /> GitHub
+            <Github className="size-3.5" /> Source
           </a>
         </div>
-        <a
-          href="https://github.com/Manueldav2/idex/releases/latest"
-          className="press-feedback inline-flex items-center gap-1.5 bg-accent text-white px-3.5 py-1.5 rounded-lg text-[13px] font-display font-semibold shadow-[0_4px_12px_rgba(61,123,255,0.25)] hover:brightness-110"
-        >
-          <Download className="size-3.5" /> Download
-        </a>
+        <div className="justify-self-end">
+          <a
+            href="https://github.com/Manueldav2/idex/releases/latest"
+            className="press-feedback inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-paper text-ink-0 text-[12px] font-medium tracking-tight hover:bg-white"
+          >
+            Install
+            <span className="text-ink-0/40 font-mono text-[10px]">↓</span>
+          </a>
+        </div>
       </div>
     </nav>
   );

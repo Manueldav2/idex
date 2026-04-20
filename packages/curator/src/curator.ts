@@ -1,20 +1,20 @@
 import type { Card, ContextEvent } from "@idex/types";
 import type { CuratorInput, CuratorPlan } from "./types.js";
 import { getStarterCards } from "./starter-feed.js";
+import { searchHackerNews } from "./hn.js";
+import { searchReddit } from "./reddit.js";
 
-/**
- * Naïve keyword extractor — used when no LLM is configured (v1.0 default mode).
- * Phase 2 swaps this for a single GLM-4.6 structured-output call.
- */
 const STOP_WORDS = new Set([
   "the","a","an","of","and","or","but","is","are","was","were","be","been",
   "to","from","with","without","for","in","on","at","as","by","this","that",
   "i","me","my","we","you","your","it","its","do","does","did","done","ok",
   "let","make","build","fix","help","need","want","please","try","then",
   "code","app","page","file","line","why","how","what","where","when","who",
+  "like","can","will","would","should","could","just","really","maybe",
+  "thing","stuff","some","any","all","lots","more","most","less","same",
 ]);
 
-function naiveTopics(events: ContextEvent[], maxTopics = 8): string[] {
+function naiveTopics(events: ContextEvent[], maxTopics = 6): string[] {
   const text = events
     .filter((e) => e.kind === "user_input" || e.kind === "agent_done")
     .map((e) => ("text" in e ? e.text : ""))
@@ -33,11 +33,6 @@ function naiveTopics(events: ContextEvent[], maxTopics = 8): string[] {
     .map(([tok]) => tok);
 }
 
-/**
- * Build a plan from a batch of context events.
- * v1.0: deterministic keyword extraction, no LLM call.
- * Phase 2: this is replaced by a single GLM-4.6 structured-output call.
- */
 export function planFromContext(input: CuratorInput): CuratorPlan {
   const topics = naiveTopics(input.recentEvents);
   const lastUserPrompt =
@@ -51,24 +46,67 @@ export function planFromContext(input: CuratorInput): CuratorPlan {
       ? `Working in ${input.projectHint}`
       : `Working on: ${intent}`,
     intent,
-    directTopics: topics.slice(0, 4),
-    adjacentTopics: topics.slice(4),
-    xQueries: topics.slice(0, 4).map((t) => t),
+    directTopics: topics.slice(0, 3),
+    adjacentTopics: topics.slice(3),
+    xQueries: topics.slice(0, 3),
   };
 }
 
 /**
- * Curate a feed for a given context.
- * v1.0 implementation — returns starter cards re-ranked by topic overlap.
- *
- * Phase 2: planFromContext → Composio search → dedupe + rank → push.
- * If the real curator is unavailable, callers should fall back to this function.
+ * Synchronous v1.0 curator — returns only starter-feed cards ranked by
+ * topic overlap. Used as the immediate response while the async pass
+ * fetches live content.
  */
 export function curate(input: CuratorInput): { plan: CuratorPlan; cards: Card[] } {
   const plan = planFromContext(input);
   const cards = getStarterCards({
     topics: [...plan.directTopics, ...plan.adjacentTopics],
-    count: 12,
+    count: 10,
   });
   return { plan, cards };
+}
+
+/**
+ * Async curator — searches Hacker News and Reddit for topics extracted
+ * from the user's prompts. Falls back to starter cards when the live
+ * sources return nothing (e.g. offline, unusual topic).
+ */
+export async function curateLive(input: CuratorInput): Promise<{ plan: CuratorPlan; cards: Card[] }> {
+  const plan = planFromContext(input);
+  const fallback = getStarterCards({
+    topics: [...plan.directTopics, ...plan.adjacentTopics],
+    count: 6,
+  });
+
+  const queries = [...plan.directTopics, ...plan.adjacentTopics.slice(0, 2)]
+    .filter((q) => q.length >= 3)
+    .slice(0, 3);
+
+  if (queries.length === 0) {
+    return { plan, cards: fallback };
+  }
+
+  // Kick off live queries in parallel, race the slowest.
+  const liveResults = await Promise.all(
+    queries.flatMap((q) => [
+      searchHackerNews(q, 5),
+      searchReddit(q, 3),
+    ]),
+  );
+  const live = liveResults.flat();
+
+  // Dedupe by id (HN + Reddit can have overlapping topics on their own)
+  const seen = new Set<string>();
+  const liveUnique = live.filter((c) => {
+    if (seen.has(c.id)) return false;
+    seen.add(c.id);
+    return true;
+  });
+
+  // Rank: live cards first by score, then starter cards.
+  liveUnique.sort((a, b) => b.score - a.score);
+  const combined = [...liveUnique, ...fallback]
+    .slice(0, 14);
+
+  return { plan, cards: combined.length > 0 ? combined : fallback };
 }

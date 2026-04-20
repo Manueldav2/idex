@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import type { Card, FeedState } from "@idex/types";
-import { curate } from "@idex/curator";
+import { curate, curateLive } from "@idex/curator";
 import { useAgent } from "./agent";
 
 interface FeedStore {
   state: FeedState;
   cards: Card[];
   generation: number;
+  isLoading: boolean;
   bindToAgent: () => () => void;
   refresh: (sessionId?: string) => void;
   setState: (state: FeedState) => void;
@@ -16,10 +17,9 @@ export const useFeed = create<FeedStore>((set, get) => ({
   state: "peek",
   cards: [],
   generation: 0,
+  isLoading: false,
 
   bindToAgent() {
-    // Collapse when active session finishes. Expansion is triggered
-    // explicitly from agent.sendToActive().
     const unsub = useAgent.subscribe((store, prev) => {
       const activeId = store.activeId;
       if (!activeId) return;
@@ -35,8 +35,28 @@ export const useFeed = create<FeedStore>((set, get) => ({
     const activeId = sessionId ?? useAgent.getState().activeId;
     const session = activeId ? useAgent.getState().sessions[activeId] : null;
     const events = session?.events.slice(-12) ?? [];
-    const { cards } = curate({ recentEvents: events });
-    set((s) => ({ cards, generation: s.generation + 1 }));
+
+    // Immediate synchronous starter-based cards so the feed never looks empty.
+    const { cards: quickCards } = curate({ recentEvents: events });
+    set((s) => ({
+      cards: quickCards,
+      generation: s.generation + 1,
+      isLoading: true,
+    }));
+
+    // Kick off the async live fetch (HN + Reddit) and replace cards when ready.
+    const thisGen = get().generation + 1;
+    void curateLive({ recentEvents: events }).then(({ cards }) => {
+      // Only apply if no newer refresh has happened in the meantime
+      if (get().generation > thisGen) return;
+      set((s) => ({
+        cards,
+        generation: s.generation + 1,
+        isLoading: false,
+      }));
+    }).catch(() => {
+      set({ isLoading: false });
+    });
   },
 
   setState(state) {

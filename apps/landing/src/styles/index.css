@@ -1,53 +1,108 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 
 @theme {
-  --color-ink-0: #0a0b0e;
-  --color-ink-1: #13151b;
-  --color-ink-2: #1c1f28;
-  --color-line: #22252f;
-  --color-text-primary: #f2f4f7;
-  --color-text-secondary: #8b92a5;
+  /* Ink: near-black with a blue undertone */
+  --color-ink-0: #08090c;
+  --color-ink-1: #0f1116;
+  --color-ink-2: #171a22;
+  --color-line: #23262f;
+  /* Paper: warm near-white, used sparingly for contrast accents */
+  --color-paper: #f4f1ea;
+  --color-text-primary: #edeff4;
+  --color-text-secondary: #7e8595;
+  --color-text-tertiary: #4c515e;
+  /* Accent: electric blue, reserved for one or two per screen */
   --color-accent: #3d7bff;
   --color-accent-soft: rgba(61, 123, 255, 0.12);
   --color-accent-glow: rgba(61, 123, 255, 0.25);
 
-  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 80px; }
-html, body, #root { margin: 0; padding: 0; background: var(--color-ink-0); color: var(--color-text-primary); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+html { scroll-behavior: smooth; scroll-padding-top: 80px; -webkit-font-smoothing: antialiased; }
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  background: var(--color-ink-0);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
 
+::selection { background: var(--color-accent); color: #fff; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.06); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.14); }
 
 .glass {
-  background: rgba(10, 11, 14, 0.7);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
+  background: rgba(8, 9, 12, 0.72);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
 }
 
 .press-feedback { transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
-.press-feedback:active { transform: scale(0.97); }
+.press-feedback:active { transform: scale(0.975); }
 
-@keyframes shimmer {
-  0% { background-position: -1000px 0; }
-  100% { background-position: 1000px 0; }
+/* Grain texture (SVG noise, very subtle) */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.9'/></svg>");
 }
 
-.gradient-text {
-  background: linear-gradient(180deg, #ffffff 0%, #cccccc 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* Editorial section numbers */
+.section-number {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
 }
 
-.subtle-noise {
+/* Typography display helpers */
+.display {
+  font-family: var(--font-display);
+  font-feature-settings: "ss01", "ss02";
+  font-variation-settings: "opsz" 144, "SOFT" 20, "WONK" 0;
+  letter-spacing: -0.04em;
+  line-height: 0.96;
+}
+.display-serif {
+  font-family: var(--font-display);
+  font-feature-settings: "ss01";
+  font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 0;
+  font-style: italic;
+  letter-spacing: -0.02em;
+}
+
+.rule-top { border-top: 1px solid var(--color-line); }
+.rule-bottom { border-bottom: 1px solid var(--color-line); }
+
+/* Subtle atmospheric gradient used under the hero and a couple of sections */
+.atmosphere {
   background-image:
-    radial-gradient(ellipse at top, rgba(61,123,255,0.08), transparent 50%),
-    radial-gradient(ellipse at bottom, rgba(61,123,255,0.04), transparent 60%);
+    radial-gradient(circle at 20% 0%, rgba(61, 123, 255, 0.08), transparent 50%),
+    radial-gradient(circle at 80% 100%, rgba(61, 123, 255, 0.04), transparent 60%);
+}
+
+/* Flying words during scroll morph */
+@keyframes drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0ms !important; transition-duration: 0ms !important; }
+  .grain::before { display: none; }
 }

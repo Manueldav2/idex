@@ -18,7 +18,7 @@ export function Hero() {
             <p className="text-text-secondary text-lg md:text-2xl tracking-tight max-w-2xl mx-auto leading-snug">
               The IDE that watches the wait. A picture-to-picture cockpit for your coding agent.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3 pb-4">
               <a
                 href="https://github.com/Manueldav2/idex/releases/latest"
                 className="press-feedback inline-flex items-center gap-2 bg-accent text-white px-5 py-3 rounded-xl text-[14px] font-display font-semibold shadow-[0_8px_24px_rgba(61,123,255,0.3)] hover:brightness-110"

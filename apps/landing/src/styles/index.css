@@ -18,6 +18,7 @@
 }
 
 * { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 80px; }
 html, body, #root { margin: 0; padding: 0; background: var(--color-ink-0); color: var(--color-text-primary); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }

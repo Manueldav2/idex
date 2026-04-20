@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "./Button";
 import { IdexLogo } from "./IdexLogo";
 import { useSettings } from "@/store/settings";
@@ -10,16 +10,42 @@ export function Setup() {
   const { config, patch } = useSettings();
   const [step, setStep] = useState<Step>("welcome");
 
+  // Keyboard shortcuts — Enter advances the primary action on each step.
+  useEffect(() => {
+    const onKey = async (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      // Skip if the user is focused in an input/textarea
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+      e.preventDefault();
+      if (step === "welcome") {
+        setStep("agent");
+      } else if (step === "agent") {
+        await patch({ selectedAgent: config.selectedAgent });
+        setStep("privacy");
+      } else if (step === "privacy") {
+        await patch({ privacyDisclosureAccepted: true });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [step, config.selectedAgent, patch]);
+
   return (
     <div className="flex h-full w-full items-center justify-center bg-ink-0 p-12 draggable">
       <div className="w-full max-w-2xl no-drag">
         <div className="mb-12 flex items-center justify-between">
           <IdexLogo />
-          <span className="text-xs text-text-secondary font-mono">
-            {step === "welcome" && "1 of 3"}
-            {step === "agent" && "2 of 3"}
-            {step === "privacy" && "3 of 3"}
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="text-[11px] text-text-secondary font-mono">
+              <kbd className="px-1.5 py-0.5 rounded border border-line">↵</kbd> continue
+            </span>
+            <span className="text-xs text-text-secondary font-mono">
+              {step === "welcome" && "1 of 3"}
+              {step === "agent" && "2 of 3"}
+              {step === "privacy" && "3 of 3"}
+            </span>
+          </div>
         </div>
 
         {step === "welcome" && <WelcomePane onNext={() => setStep("agent")} />}

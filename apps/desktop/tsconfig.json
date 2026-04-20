@@ -2,9 +2,15 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
     "noEmit": true,
-    "types": ["vite/client"]
+    "types": ["vite/client", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@idex/types": ["../../packages/types/src/index.ts"],
+      "@idex/adapters": ["../../packages/adapters/src/index.ts"],
+      "@idex/curator": ["../../packages/curator/src/index.ts"]
+    }
   },
   "include": ["src/**/*", "src/**/*.tsx", "src/vite-env.d.ts"]
 }

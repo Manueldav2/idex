@@ -6,9 +6,7 @@ interface AgentStore {
   state: AgentState;
   agentId: AgentId | null;
   cwd: string | null;
-  /** Cleaned conversation events, used for the Conversation pane and Curator. */
   events: ContextEvent[];
-  /** Last error message, if spawn failed. */
   lastError: string | null;
 
   bindStreams: () => () => void;
@@ -22,35 +20,33 @@ export const useAgent = create<AgentStore>((set, get) => ({
   state: "idle",
   agentId: null,
   cwd: null,
-  events: [],
+  events: [] as ContextEvent[],
   lastError: null,
 
   bindStreams() {
-    const offState = ipc().agent.onState((s) => {
+    const offState = ipc().agent.onState((s: string) => {
       set({ state: s as AgentState });
       if (s === "done") {
-        // Coalesce buffered chunks into an agent_done event for context bus
         const { events } = get();
         const lastChunk = [...events].reverse().find((e) => e.kind === "agent_chunk");
-        if (lastChunk) {
-          set({
-            events: [
-              ...events,
-              { kind: "agent_done", text: lastChunk.text, ts: Date.now() },
-            ],
-          });
+        if (lastChunk && "text" in lastChunk) {
+          const doneEvent: ContextEvent = {
+            kind: "agent_done",
+            text: lastChunk.text,
+            ts: Date.now(),
+          };
+          set({ events: [...events, doneEvent] });
         }
       }
     });
-    const offOutput = ipc().agent.onOutput((chunk) => {
-      // Push agent_chunk events for the curator. Cockpit terminal is fed separately.
+    const offOutput = ipc().agent.onOutput((chunk: { raw: string; clean: string; ts: number }) => {
       if (!chunk.clean.trim()) return;
-      set((s) => ({
-        events: [
-          ...s.events,
-          { kind: "agent_chunk", text: chunk.clean, ts: chunk.ts },
-        ].slice(-200),
-      }));
+      const evt: ContextEvent = {
+        kind: "agent_chunk",
+        text: chunk.clean,
+        ts: chunk.ts,
+      };
+      set((s) => ({ events: [...s.events, evt].slice(-200) }));
     });
     return () => {
       offState();
@@ -80,8 +76,7 @@ export const useAgent = create<AgentStore>((set, get) => ({
   },
 
   pushUserEvent(text) {
-    set((s) => ({
-      events: [...s.events, { kind: "user_input", text, ts: Date.now() }].slice(-200),
-    }));
+    const evt: ContextEvent = { kind: "user_input", text, ts: Date.now() };
+    set((s) => ({ events: [...s.events, evt].slice(-200) }));
   },
 }));

@@ -1,12 +1,16 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist-electron",
-    "rootDir": "./electron",
+    "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "noEmit": false,
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@idex/types": ["../../packages/types/src/index.ts"],
+      "@idex/adapters": ["../../packages/adapters/src/index.ts"],
+      "@idex/curator": ["../../packages/curator/src/index.ts"]
+    }
   },
   "include": ["electron/**/*"]
 }

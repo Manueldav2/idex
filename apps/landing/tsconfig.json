@@ -3,11 +3,10 @@
   "compilerOptions": {
     "outDir": "./dist",
     "noEmit": true,
-    "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@idex/types": ["../types/src/index.ts"]
+      "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "src/**/*.json"]
+  "include": ["src/**/*", "src/**/*.tsx"]
 }

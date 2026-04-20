@@ -2,9 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
-    "composite": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@idex/types": ["../types/src/index.ts"]
+    }
   },
-  "include": ["src/**/*"],
-  "references": [{ "path": "../types" }]
+  "include": ["src/**/*"]
 }

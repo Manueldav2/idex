@@ -44,6 +44,32 @@ class AgentHost {
       FORCE_COLOR: "1",
     };
 
+    // Expand PATH with common user/agent locations so nvm/homebrew/global npm
+    // installs are found even when the app is launched via Finder (where
+    // process.env.PATH is very minimal).
+    const extraPaths = [
+      "/opt/homebrew/bin",
+      "/usr/local/bin",
+      `${os.homedir()}/.nvm/versions/node/*/bin`,
+      `${os.homedir()}/.volta/bin`,
+      `${os.homedir()}/.bun/bin`,
+      `${os.homedir()}/.pnpm/bin`,
+    ];
+    // Glob-expand nvm paths synchronously
+    const fs = await import("node:fs");
+    const nvmRoot = `${os.homedir()}/.nvm/versions/node`;
+    try {
+      if (fs.existsSync(nvmRoot)) {
+        const versions = fs.readdirSync(nvmRoot);
+        for (const v of versions) extraPaths.push(`${nvmRoot}/${v}/bin`);
+      }
+    } catch { /* ignore */ }
+    const existingPath = env["PATH"] ?? "";
+    env["PATH"] = [...extraPaths, existingPath].filter(Boolean).join(":");
+
+    console.log(`[idex] spawning: cmd=${command.cmd} cwd=${opts.cwd || os.homedir()}`);
+    console.log(`[idex] PATH=${env["PATH"]}`);
+
     let pty: IPty;
     try {
       pty = spawn(command.cmd, command.args, {
@@ -53,8 +79,10 @@ class AgentHost {
         cwd: opts.cwd || os.homedir(),
         env: env as { [key: string]: string },
       });
+      console.log(`[idex] spawned pid=${pty.pid}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[idex] spawn failed: ${msg}`);
       onState("error");
       return {
         ok: false,
@@ -128,12 +156,16 @@ class AgentHost {
     }
   }
 
+  /**
+   * Write raw bytes to the PTY. The renderer is responsible for deciding
+   * whether this is a keystroke (single char, no \r) or a full-message
+   * submission (text + \r). We do NOT append anything here, otherwise
+   * every single keystroke from xterm.onData would look like "h\r" and
+   * Claude Code would submit on every letter.
+   */
   write(text: string): void {
     if (!this.session) return;
-    // Append a newline if user didn't include one
-    const payload = text.endsWith("\n") ? text : `${text}\r`;
-    this.session.pty.write(payload);
-    this.stateCb?.("generating");
+    this.session.pty.write(text);
   }
 
   killCurrent(): void {

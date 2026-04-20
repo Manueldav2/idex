@@ -67,7 +67,11 @@ export const useAgent = create<AgentStore>((set, get) => ({
     const t = text.trim();
     if (!t) return;
     get().pushUserEvent(t);
-    await ipc().agent.input({ text: t });
+    // Optimistically switch to generating so the feed pane reacts immediately.
+    // The main process will issue authoritative state updates as the PTY streams.
+    set({ state: "generating" });
+    // Append \r so Claude Code's TUI treats it as a submitted line.
+    await ipc().agent.input({ text: `${t}\r` });
   },
 
   async kill() {

@@ -1,53 +1,80 @@
 import { create } from "zustand";
-import type { AgentId, AgentState, ContextEvent } from "@idex/types";
+import type { AgentId, AgentState, ContextEvent, Session } from "@idex/types";
 import { ipc } from "@/lib/ipc";
 import { useFeed } from "./feed";
 
-interface AgentStore {
-  state: AgentState;
-  agentId: AgentId | null;
-  cwd: string | null;
+export interface SessionData {
+  session: Session;
   events: ContextEvent[];
   lastError: string | null;
+}
+
+interface AgentStore {
+  sessions: Record<string, SessionData>;
+  order: string[];
+  activeId: string | null;
 
   bindStreams: () => () => void;
-  spawn: (agentId: AgentId, cwd: string) => Promise<{ ok: boolean; error?: string }>;
-  send: (text: string) => Promise<void>;
-  kill: () => Promise<void>;
-  pushUserEvent: (text: string) => void;
+
+  /** Create a new session + return its id. Also becomes the active session. */
+  createSession: (opts?: { agentId?: AgentId; cwd?: string }) => Promise<{ ok: boolean; error?: string; id?: string }>;
+  /** Switch active session. */
+  setActive: (id: string) => void;
+  /** Kill and remove a session. */
+  closeSession: (id: string) => Promise<void>;
+
+  /** Send a user prompt to the active session. */
+  sendToActive: (text: string) => Promise<void>;
+  /** Record a user_input event against a session. */
+  pushUserEvent: (sessionId: string, text: string) => void;
+
+  /** Derived helpers */
+  getActive: () => SessionData | null;
+  getActiveState: () => AgentState;
 }
 
 export const useAgent = create<AgentStore>((set, get) => ({
-  state: "idle",
-  agentId: null,
-  cwd: null,
-  events: [] as ContextEvent[],
-  lastError: null,
+  sessions: {},
+  order: [],
+  activeId: null,
 
   bindStreams() {
-    const offState = ipc().agent.onState((s: string) => {
-      set({ state: s as AgentState });
-      if (s === "done") {
-        const { events } = get();
-        const lastChunk = [...events].reverse().find((e) => e.kind === "agent_chunk");
-        if (lastChunk && "text" in lastChunk) {
-          const doneEvent: ContextEvent = {
-            kind: "agent_done",
-            text: lastChunk.text,
-            ts: Date.now(),
-          };
-          set({ events: [...events, doneEvent] });
+    const offState = ipc().agent.onState((event) => {
+      set((s) => {
+        const existing = s.sessions[event.sessionId];
+        if (!existing) return s;
+        const updated: SessionData = {
+          ...existing,
+          session: { ...existing.session, state: event.state },
+        };
+        if (event.state === "done") {
+          const lastChunk = [...existing.events].reverse().find((e) => e.kind === "agent_chunk");
+          if (lastChunk && "text" in lastChunk) {
+            updated.events = [
+              ...existing.events,
+              { kind: "agent_done" as const, text: lastChunk.text, ts: Date.now() },
+            ];
+          }
         }
-      }
+        return { sessions: { ...s.sessions, [event.sessionId]: updated } };
+      });
     });
-    const offOutput = ipc().agent.onOutput((chunk: { raw: string; clean: string; ts: number }) => {
+    const offOutput = ipc().agent.onOutput((chunk) => {
       if (!chunk.clean.trim()) return;
-      const evt: ContextEvent = {
-        kind: "agent_chunk",
-        text: chunk.clean,
-        ts: chunk.ts,
-      };
-      set((s) => ({ events: [...s.events, evt].slice(-200) }));
+      set((s) => {
+        const existing = s.sessions[chunk.sessionId];
+        if (!existing) return s;
+        const evt: ContextEvent = {
+          kind: "agent_chunk",
+          text: chunk.clean,
+          ts: chunk.ts,
+        };
+        const updated: SessionData = {
+          ...existing,
+          events: [...existing.events, evt].slice(-200),
+        };
+        return { sessions: { ...s.sessions, [chunk.sessionId]: updated } };
+      });
     });
     return () => {
       offState();
@@ -55,34 +82,85 @@ export const useAgent = create<AgentStore>((set, get) => ({
     };
   },
 
-  async spawn(agentId, cwd) {
-    set({ agentId, cwd, lastError: null });
+  async createSession(opts = {}) {
+    const agentId: AgentId = opts.agentId ?? "claude-code";
+    const cwd = opts.cwd ?? "";
     const r = await ipc().agent.spawn({ agentId, cwd });
-    if (!r.ok) {
-      set({ lastError: r.error ?? "Failed to spawn agent" });
+    if (!r.ok || !r.session) {
+      return { ok: false, error: r.error };
     }
-    return r;
+    const session = r.session;
+    set((s) => ({
+      sessions: {
+        ...s.sessions,
+        [session.id]: { session, events: [], lastError: null },
+      },
+      order: [...s.order, session.id],
+      activeId: session.id,
+    }));
+    return { ok: true, id: session.id };
   },
 
-  async send(text) {
+  setActive(id) {
+    if (!get().sessions[id]) return;
+    set({ activeId: id });
+  },
+
+  async closeSession(id) {
+    await ipc().agent.kill(id);
+    set((s) => {
+      const { [id]: _removed, ...rest } = s.sessions;
+      const newOrder = s.order.filter((x) => x !== id);
+      const newActive =
+        s.activeId === id ? newOrder[newOrder.length - 1] ?? null : s.activeId;
+      return { sessions: rest, order: newOrder, activeId: newActive };
+    });
+  },
+
+  async sendToActive(text) {
     const t = text.trim();
     if (!t) return;
-    get().pushUserEvent(t);
-    set({ state: "generating" });
-    // Explicit feed expand + refresh on every user send. This is the one place
-    // feed expansion is triggered — not from raw PTY state events.
+    const active = get().activeId;
+    if (!active) return;
+    get().pushUserEvent(active, t);
+    set((s) => {
+      const existing = s.sessions[active];
+      if (!existing) return s;
+      return {
+        sessions: {
+          ...s.sessions,
+          [active]: { ...existing, session: { ...existing.session, state: "generating" } },
+        },
+      };
+    });
     useFeed.getState().setState("expanded");
-    useFeed.getState().refresh();
-    await ipc().agent.input({ text: `${t}\r` });
+    useFeed.getState().refresh(active);
+    await ipc().agent.input({ sessionId: active, text: `${t}\r` });
   },
 
-  async kill() {
-    await ipc().agent.kill();
-    set({ state: "idle" });
-  },
-
-  pushUserEvent(text) {
+  pushUserEvent(sessionId, text) {
     const evt: ContextEvent = { kind: "user_input", text, ts: Date.now() };
-    set((s) => ({ events: [...s.events, evt].slice(-200) }));
+    set((s) => {
+      const existing = s.sessions[sessionId];
+      if (!existing) return s;
+      return {
+        sessions: {
+          ...s.sessions,
+          [sessionId]: {
+            ...existing,
+            events: [...existing.events, evt].slice(-200),
+          },
+        },
+      };
+    });
+  },
+
+  getActive() {
+    const { activeId, sessions } = get();
+    return activeId ? sessions[activeId] ?? null : null;
+  },
+
+  getActiveState() {
+    return get().getActive()?.session.state ?? "idle";
   },
 }));

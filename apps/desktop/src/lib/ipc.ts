@@ -1,12 +1,12 @@
-/**
- * Tiny convenience layer over `window.idex` set up by the preload script.
- * Centralizes typing so components don't reach into globals.
- */
 import type {
   AgentSpawnOptions,
   AgentInput,
+  AgentResize,
+  AgentOutputChunk,
+  AgentStateEvent,
   AppConfig,
   KeychainKey,
+  Session,
 } from "@idex/types";
 
 declare global {
@@ -21,11 +21,13 @@ declare global {
         set: (key: KeychainKey, value: string) => Promise<boolean>;
       };
       agent: {
-        spawn: (opts: AgentSpawnOptions) => Promise<{ ok: boolean; error?: string }>;
+        spawn: (opts: AgentSpawnOptions) => Promise<{ ok: boolean; error?: string; session?: Session }>;
         input: (input: AgentInput) => Promise<void>;
-        kill: () => Promise<void>;
-        onOutput: (cb: (chunk: { raw: string; clean: string; ts: number }) => void) => () => void;
-        onState: (cb: (state: string) => void) => () => void;
+        resize: (r: AgentResize) => Promise<void>;
+        kill: (sessionId: string) => Promise<void>;
+        list: () => Promise<Session[]>;
+        onOutput: (cb: (chunk: AgentOutputChunk) => void) => () => void;
+        onState: (cb: (event: AgentStateEvent) => void) => () => void;
       };
       openExternal: (url: string) => Promise<boolean>;
     };

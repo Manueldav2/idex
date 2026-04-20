@@ -13,22 +13,48 @@ export type AgentId = "claude-code" | "codex" | "freebuff";
 export type AgentState = "idle" | "spawning" | "generating" | "done" | "error";
 
 export interface AgentSpawnOptions {
+  /** If provided, spawn with this session id. Otherwise main generates one. */
+  sessionId?: string;
   agentId: AgentId;
   cwd: string;
   /** Environment variables to forward to the agent process. */
   env?: Record<string, string>;
+  /** Optional display label for the session tab. */
+  label?: string;
+}
+
+export interface Session {
+  id: string;
+  agentId: AgentId;
+  cwd: string;
+  label: string;
+  state: AgentState;
+  createdAt: number;
 }
 
 export interface AgentInput {
+  sessionId: string;
   text: string;
 }
 
+export interface AgentResize {
+  sessionId: string;
+  cols: number;
+  rows: number;
+}
+
 export interface AgentOutputChunk {
+  sessionId: string;
   /** Raw output chunk including ANSI escapes. */
   raw: string;
   /** Cleaned text — ANSI stripped, normalized line endings. */
   clean: string;
   ts: number;
+}
+
+export interface AgentStateEvent {
+  sessionId: string;
+  state: AgentState;
 }
 
 export type ContextEvent =
@@ -47,6 +73,8 @@ export const IPC = {
   AGENT_OUTPUT_STREAM: "agent:output:stream",
   AGENT_STATE: "agent:state",
   AGENT_KILL: "agent:kill",
+  AGENT_RESIZE: "agent:resize",
+  SESSION_LIST: "session:list",
   CONTEXT_EVENT: "context:event",
   FEED_CARDS: "feed:cards",
   FEED_STATE: "feed:state",

@@ -1,13 +1,19 @@
 import { app, BrowserWindow, ipcMain, shell, nativeTheme } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { IPC, type AgentSpawnOptions, type AgentInput, type AppConfig, type KeychainKey } from "@idex/types";
+import {
+  IPC,
+  type AgentSpawnOptions,
+  type AgentInput,
+  type AgentResize,
+  type AppConfig,
+  type KeychainKey,
+} from "@idex/types";
 import { agentHost } from "./agent-host.js";
 import { configStore } from "./config-store.js";
 import { keychain } from "./keychain.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const isDev = !!process.env["VITE_DEV_SERVER_URL"];
 
 let mainWindow: BrowserWindow | null = null;
@@ -31,9 +37,7 @@ function createMainWindow() {
     },
   });
 
-  mainWindow.once("ready-to-show", () => {
-    mainWindow?.show();
-  });
+  mainWindow.once("ready-to-show", () => mainWindow?.show());
 
   if (isDev) {
     mainWindow.loadURL(process.env["VITE_DEV_SERVER_URL"] as string);
@@ -42,7 +46,6 @@ function createMainWindow() {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 
-  // Log renderer load failures to main stdout (helpful when debugging a blank window)
   mainWindow.webContents.on("did-fail-load", (_, code, desc, url) => {
     console.error("[idex] did-fail-load", { code, desc, url });
   });
@@ -56,43 +59,27 @@ function createMainWindow() {
   });
 }
 
-/* ────────────────────────────────────────────── *
- * IPC handlers                                   *
- * ────────────────────────────────────────────── */
-
 function registerIpc() {
-  // Config
-  ipcMain.handle(IPC.CONFIG_GET, async () => {
-    return configStore.read();
-  });
-  ipcMain.handle(IPC.CONFIG_SET, async (_, patch: Partial<AppConfig>) => {
-    return configStore.merge(patch);
+  agentHost.setCallbacks({
+    onOutput: (chunk) => mainWindow?.webContents.send(IPC.AGENT_OUTPUT_STREAM, chunk),
+    onState: (event) => mainWindow?.webContents.send(IPC.AGENT_STATE, event),
   });
 
-  // Keychain
-  ipcMain.handle(IPC.KEYCHAIN_GET, async (_, key: KeychainKey) => {
-    return keychain.get(key);
-  });
-  ipcMain.handle(IPC.KEYCHAIN_SET, async (_, key: KeychainKey, value: string) => {
-    return keychain.set(key, value);
-  });
+  ipcMain.handle(IPC.CONFIG_GET, async () => configStore.read());
+  ipcMain.handle(IPC.CONFIG_SET, async (_, patch: Partial<AppConfig>) => configStore.merge(patch));
+  ipcMain.handle(IPC.KEYCHAIN_GET, async (_, key: KeychainKey) => keychain.get(key));
+  ipcMain.handle(IPC.KEYCHAIN_SET, async (_, key: KeychainKey, value: string) => keychain.set(key, value));
 
-  // Agent control
-  ipcMain.handle(IPC.AGENT_SPAWN, async (_, opts: AgentSpawnOptions) => {
-    return agentHost.spawn(opts, (event) => {
-      mainWindow?.webContents.send(IPC.AGENT_OUTPUT_STREAM, event);
-    }, (state) => {
-      mainWindow?.webContents.send(IPC.AGENT_STATE, state);
-    });
-  });
+  ipcMain.handle(IPC.AGENT_SPAWN, async (_, opts: AgentSpawnOptions) => agentHost.spawn(opts));
   ipcMain.handle(IPC.AGENT_INPUT, async (_, input: AgentInput) => {
-    return agentHost.write(input.text);
+    agentHost.write(input.sessionId, input.text);
   });
-  ipcMain.handle(IPC.AGENT_KILL, async () => {
-    return agentHost.killCurrent();
+  ipcMain.handle(IPC.AGENT_RESIZE, async (_, r: AgentResize) => {
+    agentHost.resize(r.sessionId, r.cols, r.rows);
   });
+  ipcMain.handle(IPC.AGENT_KILL, async (_, sessionId: string) => agentHost.kill(sessionId));
+  ipcMain.handle(IPC.SESSION_LIST, async () => agentHost.list());
 
-  // External URLs
   ipcMain.handle(IPC.OPEN_EXTERNAL, async (_, url: string) => {
     if (!url || typeof url !== "string") return false;
     if (!/^https?:\/\//i.test(url)) return false;
@@ -101,29 +88,19 @@ function registerIpc() {
   });
 }
 
-/* ────────────────────────────────────────────── *
- * App lifecycle                                  *
- * ────────────────────────────────────────────── */
-
 app.whenReady().then(() => {
   nativeTheme.themeSource = "dark";
   registerIpc();
   createMainWindow();
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
   });
 });
 
 app.on("window-all-closed", () => {
   agentHost.killAll();
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  if (process.platform !== "darwin") app.quit();
 });
 
-app.on("before-quit", () => {
-  agentHost.killAll();
-});
+app.on("before-quit", () => agentHost.killAll());

@@ -7,10 +7,8 @@ interface FeedStore {
   state: FeedState;
   cards: Card[];
   generation: number;
-  /** Bind to agent state to drive peek↔expanded transitions. */
   bindToAgent: () => () => void;
-  /** Refresh cards based on the current agent context. */
-  refresh: () => void;
+  refresh: (sessionId?: string) => void;
   setState: (state: FeedState) => void;
 }
 
@@ -20,22 +18,24 @@ export const useFeed = create<FeedStore>((set, get) => ({
   generation: 0,
 
   bindToAgent() {
-    // Collapse-on-done only. Expansion is triggered explicitly from agent.send()
-    // so we don't flap every time the PTY emits a keystroke echo.
-    const unsub = useAgent.subscribe((agentStore, prev) => {
-      if (agentStore.state === "done" && prev.state !== "done") {
-        set({ state: "peek" });
-      }
-      if (agentStore.state === "error") {
-        set({ state: "peek" });
-      }
+    // Collapse when active session finishes. Expansion is triggered
+    // explicitly from agent.sendToActive().
+    const unsub = useAgent.subscribe((store, prev) => {
+      const activeId = store.activeId;
+      if (!activeId) return;
+      const current = store.sessions[activeId]?.session.state;
+      const before = prev.sessions[activeId]?.session.state;
+      if (current === "done" && before !== "done") set({ state: "peek" });
+      if (current === "error") set({ state: "peek" });
     });
     return unsub;
   },
 
-  refresh() {
-    const events = useAgent.getState().events;
-    const { cards } = curate({ recentEvents: events.slice(-12) });
+  refresh(sessionId) {
+    const activeId = sessionId ?? useAgent.getState().activeId;
+    const session = activeId ? useAgent.getState().sessions[activeId] : null;
+    const events = session?.events.slice(-12) ?? [];
+    const { cards } = curate({ recentEvents: events });
     set((s) => ({ cards, generation: s.generation + 1 }));
   },
 

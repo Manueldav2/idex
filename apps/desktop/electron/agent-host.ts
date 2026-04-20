@@ -1,75 +1,79 @@
 import { spawn, type IPty } from "node-pty";
 import os from "node:os";
+import { randomUUID } from "node:crypto";
 import { getAdapter } from "@idex/adapters";
 import type {
   AgentSpawnOptions,
   AgentOutputChunk,
   AgentState,
+  AgentStateEvent,
+  Session,
+  AgentId,
 } from "@idex/types";
 
 interface ActiveSession {
+  id: string;
   pty: IPty;
-  agentId: AgentSpawnOptions["agentId"];
-  buffer: string; // raw buffer since last detected boundary
+  agentId: AgentId;
+  cwd: string;
+  label: string;
+  createdAt: number;
+  buffer: string;
   lastChunkAt: number;
   idleTimer: NodeJS.Timeout | null;
   lastEmittedState: AgentState | null;
+  state: AgentState;
 }
 
 const IDLE_BOUNDARY_MS = 350;
 
+interface HostCallbacks {
+  onOutput: (chunk: AgentOutputChunk) => void;
+  onState: (event: AgentStateEvent) => void;
+}
+
 class AgentHost {
-  private session: ActiveSession | null = null;
-  private outputCb: ((chunk: AgentOutputChunk) => void) | null = null;
-  private stateCb: ((state: AgentState) => void) | null = null;
+  private sessions = new Map<string, ActiveSession>();
+  private cbs: HostCallbacks | null = null;
 
-  async spawn(
-    opts: AgentSpawnOptions,
-    onOutput: (chunk: AgentOutputChunk) => void,
-    onState: (state: AgentState) => void,
-  ): Promise<{ ok: boolean; error?: string }> {
-    this.killCurrent();
+  setCallbacks(cbs: HostCallbacks) {
+    this.cbs = cbs;
+  }
 
-    this.outputCb = onOutput;
-    this.stateCb = onState;
-    onState("spawning");
-
+  async spawn(opts: AgentSpawnOptions): Promise<{ ok: boolean; error?: string; session?: Session }> {
+    const sessionId = opts.sessionId ?? randomUUID();
     const adapter = getAdapter(opts.agentId);
     const command = adapter.getCommand();
 
     const env: Record<string, string> = {
       ...(process.env as Record<string, string>),
       ...(opts.env ?? {}),
-      // Force TTY-friendly behavior in agent CLIs
       TERM: process.env["TERM"] ?? "xterm-256color",
       FORCE_COLOR: "1",
     };
 
-    // Expand PATH with common user/agent locations so nvm/homebrew/global npm
-    // installs are found even when the app is launched via Finder (where
-    // process.env.PATH is very minimal).
     const extraPaths = [
       "/opt/homebrew/bin",
       "/usr/local/bin",
-      `${os.homedir()}/.nvm/versions/node/*/bin`,
       `${os.homedir()}/.volta/bin`,
       `${os.homedir()}/.bun/bin`,
       `${os.homedir()}/.pnpm/bin`,
     ];
-    // Glob-expand nvm paths synchronously
     const fs = await import("node:fs");
     const nvmRoot = `${os.homedir()}/.nvm/versions/node`;
     try {
       if (fs.existsSync(nvmRoot)) {
-        const versions = fs.readdirSync(nvmRoot);
-        for (const v of versions) extraPaths.push(`${nvmRoot}/${v}/bin`);
+        for (const v of fs.readdirSync(nvmRoot)) extraPaths.push(`${nvmRoot}/${v}/bin`);
       }
     } catch { /* ignore */ }
-    const existingPath = env["PATH"] ?? "";
-    env["PATH"] = [...extraPaths, existingPath].filter(Boolean).join(":");
+    env["PATH"] = [...extraPaths, env["PATH"] ?? ""].filter(Boolean).join(":");
 
-    console.log(`[idex] spawning: cmd=${command.cmd} cwd=${opts.cwd || os.homedir()}`);
-    console.log(`[idex] PATH=${env["PATH"]}`);
+    const cwd = opts.cwd || os.homedir();
+    const label =
+      opts.label ??
+      `${adapter.displayName} · ${cwd.replace(os.homedir(), "~").split("/").slice(-2).join("/") || "~"}`;
+
+    console.log(`[idex] spawn session=${sessionId} agent=${opts.agentId} cwd=${cwd}`);
 
     let pty: IPty;
     try {
@@ -77,41 +81,56 @@ class AgentHost {
         name: "xterm-256color",
         cols: 120,
         rows: 32,
-        cwd: opts.cwd || os.homedir(),
+        cwd,
         env: env as { [key: string]: string },
       });
-      console.log(`[idex] spawned pid=${pty.pid}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error(`[idex] spawn failed: ${msg}`);
-      onState("error");
       return {
         ok: false,
         error: `Failed to spawn '${command.cmd}': ${msg}. Is it installed and on PATH?`,
       };
     }
 
-    this.session = {
+    const session: ActiveSession = {
+      id: sessionId,
       pty,
       agentId: opts.agentId,
+      cwd,
+      label,
+      createdAt: Date.now(),
       buffer: "",
       lastChunkAt: Date.now(),
       idleTimer: null,
       lastEmittedState: null,
+      state: "idle",
     };
-    this.emitState("idle");
+    this.sessions.set(sessionId, session);
+    this.emitState(sessionId, "idle");
 
-    pty.onData((data) => this.handleData(data));
+    pty.onData((data) => this.handleData(sessionId, data));
     pty.onExit(() => {
-      onState("idle");
-      this.session = null;
+      console.log(`[idex] session ${sessionId} exited`);
+      this.sessions.delete(sessionId);
+      this.cbs?.onState({ sessionId, state: "error" });
     });
 
-    return { ok: true };
+    return {
+      ok: true,
+      session: {
+        id: sessionId,
+        agentId: opts.agentId,
+        cwd,
+        label,
+        state: "idle",
+        createdAt: session.createdAt,
+      },
+    };
   }
 
-  private handleData(raw: string) {
-    const session = this.session;
+  private handleData(sessionId: string, raw: string) {
+    const session = this.sessions.get(sessionId);
     if (!session) return;
     const adapter = getAdapter(session.agentId);
     session.buffer += raw;
@@ -123,7 +142,8 @@ class AgentHost {
       ts: session.lastChunkAt,
     });
 
-    this.outputCb?.({
+    this.cbs?.onOutput({
+      sessionId,
       raw,
       clean: detection.cleanText,
       ts: session.lastChunkAt,
@@ -131,66 +151,75 @@ class AgentHost {
 
     if (detection.userPromptBoundary) {
       session.buffer = "";
-      this.emitState("done");
-      this.clearIdleTimer();
+      this.emitState(sessionId, "done");
+      this.clearIdleTimer(session);
     } else {
-      this.armIdleTimer();
-      // Only emit "generating" on the transition, not every chunk — otherwise
-      // every keystroke echo causes a state flap and the feed expands/collapses
-      // on every character.
-      this.emitState("generating");
+      this.armIdleTimer(session);
+      this.emitState(sessionId, "generating");
     }
   }
 
-  private emitState(next: AgentState) {
-    const session = this.session;
+  private emitState(sessionId: string, next: AgentState) {
+    const session = this.sessions.get(sessionId);
     if (!session) return;
     if (session.lastEmittedState === next) return;
     session.lastEmittedState = next;
-    this.stateCb?.(next);
+    session.state = next;
+    this.cbs?.onState({ sessionId, state: next });
   }
 
-  private armIdleTimer() {
-    this.clearIdleTimer();
-    if (!this.session) return;
-    this.session.idleTimer = setTimeout(() => {
-      const session = this.session;
-      if (!session) return;
-      this.emitState("done");
+  private armIdleTimer(session: ActiveSession) {
+    this.clearIdleTimer(session);
+    session.idleTimer = setTimeout(() => {
+      if (!this.sessions.has(session.id)) return;
+      this.emitState(session.id, "done");
       session.buffer = "";
     }, IDLE_BOUNDARY_MS);
   }
 
-  private clearIdleTimer() {
-    if (this.session?.idleTimer) {
-      clearTimeout(this.session.idleTimer);
-      this.session.idleTimer = null;
+  private clearIdleTimer(session: ActiveSession) {
+    if (session.idleTimer) {
+      clearTimeout(session.idleTimer);
+      session.idleTimer = null;
     }
   }
 
-  /**
-   * Write raw bytes to the PTY. The renderer is responsible for deciding
-   * whether this is a keystroke (single char, no \r) or a full-message
-   * submission (text + \r). We do NOT append anything here, otherwise
-   * every single keystroke from xterm.onData would look like "h\r" and
-   * Claude Code would submit on every letter.
-   */
-  write(text: string): void {
-    if (!this.session) return;
-    this.session.pty.write(text);
+  write(sessionId: string, text: string): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+    session.pty.write(text);
   }
 
-  killCurrent(): void {
-    if (!this.session) return;
-    try { this.session.pty.kill(); } catch { /* ignore */ }
-    this.clearIdleTimer();
-    this.session = null;
-    this.stateCb?.("idle");
-    this.stateCb = null;
+  resize(sessionId: string, cols: number, rows: number): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+    try { session.pty.resize(cols, rows); } catch { /* ignore */ }
+  }
+
+  kill(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+    try { session.pty.kill(); } catch { /* ignore */ }
+    this.clearIdleTimer(session);
+    this.sessions.delete(sessionId);
+    this.cbs?.onState({ sessionId, state: "error" });
+  }
+
+  list(): Session[] {
+    return Array.from(this.sessions.values()).map((s) => ({
+      id: s.id,
+      agentId: s.agentId,
+      cwd: s.cwd,
+      label: s.label,
+      state: s.state,
+      createdAt: s.createdAt,
+    }));
   }
 
   killAll(): void {
-    this.killCurrent();
+    for (const id of Array.from(this.sessions.keys())) {
+      this.kill(id);
+    }
   }
 }
 

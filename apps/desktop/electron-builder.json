@@ -7,26 +7,26 @@
   "files": [
     "dist/**/*",
     "dist-electron/**/*",
-    "package.json"
+    "package.json",
+    "!**/node_modules/@idex/**",
+    "!**/node_modules/.pnpm/@idex+**"
   ],
   "asar": true,
   "asarUnpack": ["**/node_modules/node-pty/**/*", "**/node_modules/keytar/**/*"],
   "mac": {
     "category": "public.app-category.developer-tools",
     "target": [
-      { "target": "dmg", "arch": ["arm64", "x64"] },
-      { "target": "zip", "arch": ["arm64", "x64"] }
+      { "target": "dmg", "arch": ["arm64"] },
+      { "target": "zip", "arch": ["arm64"] }
     ],
-    "icon": "build/icon.png",
-    "hardenedRuntime": true,
+    "hardenedRuntime": false,
     "gatekeeperAssess": false,
     "darkModeSupport": true,
-    "type": "distribution"
+    "type": "distribution",
+    "identity": null
   },
   "dmg": {
     "title": "IDEX ${version}",
-    "icon": "build/icon.png",
-    "background": null,
     "iconSize": 96,
     "window": { "width": 540, "height": 380 },
     "contents": [

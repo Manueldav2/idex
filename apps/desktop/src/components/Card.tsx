@@ -63,11 +63,14 @@ function avatarBg(card: CardType): string {
 
 export function Card({
   card,
-  focused: _focused,
+  focused = false,
   shimmer = false,
 }: {
   card: CardType;
-  focused: boolean;
+  /** Arrow-key-focused card in the feed list — draws a thin accent rail
+   *  on the left edge. Keyboard-only users lose the mouse hover state,
+   *  so this is the only "you are here" signal they get. */
+  focused?: boolean;
   /** When true, overlay a subtle accent-tinted shimmer to signal a live
    *  fetch is in flight replacing this starter card. */
   shimmer?: boolean;
@@ -112,6 +115,13 @@ export function Card({
     >
       {shimmer && (
         <div aria-hidden className="card-shimmer absolute inset-0" />
+      )}
+      {focused && (
+        <div
+          aria-hidden
+          className="absolute left-0 top-0 bottom-0 w-[2px]"
+          style={{ background: "#3d7bff" }}
+        />
       )}
 
       <div className="flex items-start gap-3">

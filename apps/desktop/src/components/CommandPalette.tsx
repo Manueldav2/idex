@@ -7,6 +7,7 @@ import {
   Play,
   Plus,
   Search,
+  Settings as SettingsIcon,
   SplitSquareVertical,
   TerminalSquare,
 } from "lucide-react";
@@ -31,6 +32,9 @@ interface Item {
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** Open the Settings drawer. Lifted into Cockpit so the palette can
+   *  trigger the same drawer that the gear icon + ⌘, shortcut open. */
+  onOpenSettings?: () => void;
 }
 
 /**
@@ -40,7 +44,7 @@ interface Props {
  * close hijinks per spec — the overlay catches the click and closes
  * only when the pointerdown is on the scrim itself.
  */
-export function CommandPalette({ open, onClose }: Props) {
+export function CommandPalette({ open, onClose, onOpenSettings }: Props) {
   const recents = useProjects((s) => s.recents);
   const openProject = useProjects((s) => s.openProject);
   const openFiles = useWorkspace((s) => s.openFiles);
@@ -81,6 +85,18 @@ export function CommandPalette({ open, onClose }: Props) {
       icon: <SplitSquareVertical className="size-4" />,
       run: () => patchConfig({ mode: nextMode }),
     });
+
+    if (onOpenSettings) {
+      out.push({
+        id: "action:open-settings",
+        label: "Open settings",
+        sub: "Agent, keys, curator, privacy",
+        hint: "⌘,",
+        section: "action",
+        icon: <SettingsIcon className="size-4" />,
+        run: () => onOpenSettings(),
+      });
+    }
 
     out.push({
       id: "action:autopilot",
@@ -151,6 +167,7 @@ export function CommandPalette({ open, onClose }: Props) {
     mode,
     selectedAgent,
     createSession,
+    onOpenSettings,
   ]);
 
   const filtered = useMemo(() => {

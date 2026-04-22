@@ -122,14 +122,14 @@ function AgentPickPane({
       name: "Codex",
       tagline: "OpenAI's open-source coding agent. Multi-step planning.",
       install: "npm install -g @openai/codex",
-      badge: "Phase 2",
+      badge: "Soon",
     },
     {
       id: "freebuff",
       name: "Freebuff",
       tagline: "The free, ad-supported coding agent from Codebuff.",
       install: "npm install -g freebuff",
-      badge: "Phase 3",
+      badge: "Soon",
     },
   ];
 

@@ -147,6 +147,7 @@ function ShortcutHint() {
               <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px] text-text-primary">⌘E</kbd>{" "}
               Editor
             </span>
+
           </div>
         </motion.div>
       )}

@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
+import { WebLinksAddon } from "@xterm/addon-web-links";
 import type { SessionData } from "@/store/agent";
 import { useAgent } from "@/store/agent";
 import { useFeed } from "@/store/feed";
@@ -12,6 +14,45 @@ interface Props {
   data: SessionData;
   active: boolean;
 }
+
+/**
+ * Font stack mirrors VS Code's published integrated-terminal defaults per
+ * platform, with a Nerd Font slot up front so Claude Code's PUA status
+ * glyphs (branch, lock, gear, spinner) render as real symbols instead of
+ * tofu. Fallbacks cascade: platform mono → ui-monospace → generic.
+ */
+const TERMINAL_FONT_FAMILY =
+  '"MesloLGS NF", "IdexMono Nerd Font", "JetBrainsMono Nerd Font", ' +
+  'Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", ' +
+  "ui-monospace, monospace";
+
+const XTERM_THEME = {
+  background: "#0A0B0E",
+  foreground: "#F2F4F7",
+  cursor: "#3D7BFF",
+  cursorAccent: "#0A0B0E",
+  selectionBackground: "rgba(61,123,255,0.28)",
+  selectionForeground: undefined,
+  black: "#0A0B0E",
+  red: "#FF6B6B",
+  green: "#5EEAD4",
+  yellow: "#FBBF24",
+  blue: "#3D7BFF",
+  magenta: "#A78BFA",
+  cyan: "#22D3EE",
+  white: "#F2F4F7",
+  brightBlack: "#8B92A5",
+  brightRed: "#FF8A8A",
+  brightGreen: "#7FF3DE",
+  brightYellow: "#FCD34D",
+  brightBlue: "#6B9DFF",
+  brightMagenta: "#BCA4FF",
+  brightCyan: "#5FE3F3",
+  brightWhite: "#FFFFFF",
+};
+
+/** Match class name used to tint in-terminal URL underlines. */
+const WEB_LINK_CLASS = "xterm-idex-weblink";
 
 /**
  * One xterm terminal bound to one session. Mounted once per session, kept
@@ -54,57 +95,52 @@ export function SessionView({ data, active }: Props) {
      * exact (no fractional rounding artifacts).
      */
     const term = new XTerm({
-      fontFamily: "'IdexMono', Menlo, Monaco, 'Courier New', monospace",
-      fontSize: 12,
-      lineHeight: 1,
+      fontFamily: TERMINAL_FONT_FAMILY,
+      fontSize: 13,
+      lineHeight: 1.2,
       letterSpacing: 0,
-      fontWeight: "normal",
-      fontWeightBold: "bold",
+      fontWeight: "400",
+      fontWeightBold: "700",
       minimumContrastRatio: 4.5,
       drawBoldTextInBrightColors: false,
+      theme: XTERM_THEME,
+      scrollback: 20000,
       allowTransparency: false,
       convertEol: false,
       cursorBlink: true,
-      cursorStyle: "block",
+      cursorStyle: "bar",
+      cursorWidth: 2,
       cursorInactiveStyle: "outline",
-      scrollback: 10000,
       smoothScrollDuration: 0,
-      // customGlyphs lives on Terminal options in @xterm/addon-webgl v0.18
-      // (newer versions moved it to the addon constructor — VS Code is on
-      // the newer one). Effect is the same: box-drawing/Powerline/git
-      // glyphs are rasterised by xterm itself, cell-aligned.
+      macOptionIsMeta: true,
+      macOptionClickForcesSelection: true,
+      rightClickSelectsWord: true,
+      scrollOnUserInput: true,
+      windowsPty: { backend: "conpty" },
+      // customGlyphs + Unicode11 need proposed API. WebGL too.
+      allowProposedApi: true,
       customGlyphs: true,
-      theme: {
-        background: "#0B0C10",
-        foreground: "#EEF0F3",
-        cursor: "#3D7BFF",
-        cursorAccent: "#0B0C10",
-        selectionBackground: "rgba(61,123,255,0.22)",
-        black: "#0B0C10",
-        red: "#FF6B6B",
-        green: "#5EEAD4",
-        yellow: "#FBBF24",
-        blue: "#3D7BFF",
-        magenta: "#A78BFA",
-        cyan: "#22D3EE",
-        white: "#EEF0F3",
-        brightBlack: "#8A91A2",
-        brightWhite: "#FFFFFF",
-      },
     });
     const fit = new FitAddon();
+    const unicode = new Unicode11Addon();
+    const webLinks = new WebLinksAddon();
     term.loadAddon(fit);
+    term.loadAddon(unicode);
+    term.loadAddon(webLinks);
+    term.unicode.activeVersion = "11";
     term.open(containerRef.current);
 
-    // WebGL renderer — fast, accurate glyph rendering with proper sub-
-    // pixel positioning. Falls back to canvas silently if WebGL isn't
-    // available in this webview context.
+    // WebGL renderer is dramatically faster than canvas, but may fail on
+    // software-rendered GL (older Intel iGPUs, remote desktops). Fall back
+    // silently to xterm's default DOM/canvas renderer when it blows up.
     try {
       const webgl = new WebglAddon();
-      webgl.onContextLoss(() => webgl.dispose());
+      webgl.onContextLoss(() => {
+        try { webgl.dispose(); } catch { /* ignore */ }
+      });
       term.loadAddon(webgl);
-    } catch (e) {
-      console.warn("[idex] WebGL renderer unavailable, using canvas", e);
+    } catch (err) {
+      console.warn("[idex] webgl renderer unavailable, falling back", err);
     }
 
     xtermRef.current = term;
@@ -114,6 +150,7 @@ export function SessionView({ data, active }: Props) {
     const reportResize = () => {
       try {
         const { cols, rows } = term;
+        if (cols < 2 || rows < 2) return;
         void ipc().agent.resize({ sessionId, cols, rows });
       } catch { /* ignore */ }
     };
@@ -188,6 +225,20 @@ export function SessionView({ data, active }: Props) {
     };
     void onFontsReady();
 
+    // Debounce resize reports so a burst of ResizeObserver callbacks (during
+    // window drag, sidebar toggle, feed expand/collapse) only triggers one
+    // PTY resize at the end of the burst. Claude Code's TUI is expensive
+    // to rewrap, so keeping this down to ~60ms trailing-edge matters.
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        resizeTimer = null;
+        const { cols } = safeFit();
+        if (cols >= SANE_COLS_FLOOR) reportResize();
+      }, 60);
+    };
+
     // Listen for output targeted to this session
     const offOutput = ipc().agent.onOutput((chunk) => {
       if (chunk.sessionId !== sessionId) return;
@@ -211,6 +262,79 @@ export function SessionView({ data, active }: Props) {
           }, 400);
         }
       }
+    });
+
+    // Keyboard shortcuts that xterm would otherwise swallow:
+    //   Cmd/Ctrl+Shift+C  — copy selection (only fires when there's one)
+    //   Cmd/Ctrl+Shift+V  — paste from clipboard
+    //   Cmd/Ctrl+K        — clear scrollback (native macOS terminal shortcut)
+    //   Cmd/Ctrl+=        — bump font size
+    //   Cmd/Ctrl+-        — shrink font size
+    // Shortcuts that should bubble to the browser (not reach the PTY):
+    //   any Cmd/Ctrl-combo that isn't a terminal control sequence.
+    // Each handled combo swallows the event — preventDefault + stopPropagation
+    // stop the browser's paste event from firing (avoiding double-paste) and
+    // keep the global command palette / mode-toggle listeners from also
+    // reacting to the same keystroke.
+    const swallow = (ev: KeyboardEvent) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (typeof ev.stopImmediatePropagation === "function") {
+        ev.stopImmediatePropagation();
+      }
+    };
+    term.attachCustomKeyEventHandler((ev) => {
+      if (ev.type !== "keydown") return true;
+      const mod = ev.metaKey || ev.ctrlKey;
+      if (!mod) return true;
+
+      // Let Ctrl-C / Ctrl-D / Ctrl-Z / Ctrl-R etc. reach the PTY.
+      // Those are bare Ctrl+<letter> without Shift/Meta except on Mac.
+      const hasShift = ev.shiftKey;
+
+      if ((mod && hasShift && (ev.key === "C" || ev.key === "c"))) {
+        const sel = term.getSelection();
+        if (sel) {
+          void navigator.clipboard.writeText(sel).catch(() => { /* ignore */ });
+          swallow(ev);
+          return false;
+        }
+        return true;
+      }
+      if (mod && hasShift && (ev.key === "V" || ev.key === "v")) {
+        void navigator.clipboard.readText().then((text) => {
+          if (text) void ipc().agent.input({ sessionId, text });
+        }).catch(() => { /* ignore */ });
+        swallow(ev);
+        return false;
+      }
+      if (mod && (ev.key === "k" || ev.key === "K") && !hasShift) {
+        term.clear();
+        swallow(ev);
+        return false;
+      }
+      if (mod && (ev.key === "=" || ev.key === "+")) {
+        term.options.fontSize = Math.min((term.options.fontSize ?? 13) + 1, 22);
+        scheduleResize();
+        swallow(ev);
+        return false;
+      }
+      if (mod && ev.key === "-") {
+        term.options.fontSize = Math.max((term.options.fontSize ?? 13) - 1, 9);
+        scheduleResize();
+        swallow(ev);
+        return false;
+      }
+      if (mod && (ev.key === "0")) {
+        term.options.fontSize = 13;
+        scheduleResize();
+        swallow(ev);
+        return false;
+      }
+
+      // Anything else with Cmd/Ctrl: let the browser (command palette,
+      // mode toggles) see it.
+      return false;
     });
 
     // Send xterm keystrokes → PTY (raw). Detect Enter-with-typed-content
@@ -280,18 +404,11 @@ export function SessionView({ data, active }: Props) {
       }
     });
 
-    const ro = new ResizeObserver(() => {
-      // Same sanity gate as the initial fit: never tell the PTY to
-      // shrink to a bogus narrow size. The fit will be re-attempted
-      // when the next resize event fires with a real container width.
-      try {
-        fit.fit();
-        if (term.cols >= SANE_COLS_FLOOR) {
-          reportResize();
-        }
-      } catch { /* ignore */ }
-    });
+    const ro = new ResizeObserver(() => scheduleResize());
     ro.observe(containerRef.current);
+
+    // Initial PTY resize now that we've had two rAFs to lay out.
+    requestAnimationFrame(() => requestAnimationFrame(reportResize));
 
     if (active) {
       setTimeout(() => term.focus(), 80);
@@ -301,7 +418,8 @@ export function SessionView({ data, active }: Props) {
       offOutput();
       onTermData.dispose();
       ro.disconnect();
-      term.dispose();
+      if (resizeTimer) clearTimeout(resizeTimer);
+      try { term.dispose(); } catch { /* ignore */ }
       xtermRef.current = null;
     };
   }, [sessionId]); // only re-mount if session id changes (shouldn't happen)
@@ -368,7 +486,7 @@ export function SessionView({ data, active }: Props) {
       ref={containerRef}
       onClick={() => xtermRef.current?.focus()}
       style={{ display: active ? "block" : "none" }}
-      className="h-full w-full px-5 pt-3 pb-3 overflow-hidden cursor-text"
+      className={`h-full w-full px-5 pt-3 pb-3 overflow-hidden cursor-text ${WEB_LINK_CLASS}-host`}
     />
   );
 }

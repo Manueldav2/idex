@@ -1,5 +1,6 @@
 import { spawn, type IPty } from "node-pty";
 import os from "node:os";
+import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { getAdapter } from "@idex/adapters";
 import type {
@@ -23,7 +24,20 @@ interface ActiveSession {
   idleTimer: NodeJS.Timeout | null;
   lastEmittedState: AgentState | null;
   state: AgentState;
+  /**
+   * True when we couldn't find the agent binary and dropped into the user's
+   * $SHELL as a fallback. Adapter boundary detection is skipped so the shell
+   * doesn't flash "done" on every prompt draw.
+   */
+  isShellFallback: boolean;
 }
+
+/** Install commands we print when the agent binary is missing. */
+const INSTALL_HINTS: Record<AgentId, string> = {
+  "claude-code": "npm install -g @anthropic-ai/claude-code   # then run `claude`",
+  codex: "npm install -g @openai/codex   # then run `codex`",
+  freebuff: "npm install -g freebuff   # then run `freebuff`",
+};
 
 const IDLE_BOUNDARY_MS = 350;
 
@@ -49,15 +63,22 @@ class AgentHost {
       ...(process.env as Record<string, string>),
       ...(opts.env ?? {}),
       TERM: process.env["TERM"] ?? "xterm-256color",
+      COLORTERM: process.env["COLORTERM"] ?? "truecolor",
       FORCE_COLOR: "1",
+      IDEX_SESSION_ID: sessionId,
+      IDEX_AGENT_ID: opts.agentId,
     };
 
     const extraPaths = [
       "/opt/homebrew/bin",
       "/usr/local/bin",
+      "/usr/bin",
+      "/bin",
       `${os.homedir()}/.volta/bin`,
       `${os.homedir()}/.bun/bin`,
       `${os.homedir()}/.pnpm/bin`,
+      `${os.homedir()}/.local/bin`,
+      `${os.homedir()}/.cargo/bin`,
     ];
     const fs = await import("node:fs");
     const nvmRoot = `${os.homedir()}/.nvm/versions/node`;
@@ -66,30 +87,60 @@ class AgentHost {
         for (const v of fs.readdirSync(nvmRoot)) extraPaths.push(`${nvmRoot}/${v}/bin`);
       }
     } catch { /* ignore */ }
-    env["PATH"] = [...extraPaths, env["PATH"] ?? ""].filter(Boolean).join(":");
+    env["PATH"] = [...extraPaths, env["PATH"] ?? ""].filter(Boolean).join(path.delimiter);
 
     const cwd = opts.cwd || os.homedir();
     const label =
       opts.label ??
       `${adapter.displayName} · ${cwd.replace(os.homedir(), "~").split("/").slice(-2).join("/") || "~"}`;
 
-    console.log(`[idex] spawn session=${sessionId} agent=${opts.agentId} cwd=${cwd}`);
+    // Resolve agent binary against the augmented PATH. If it's not there,
+    // don't fail — drop the user into their $SHELL with an install hint so
+    // the app stays usable (the IDE is still an IDE even without the agent).
+    const resolved = this.resolveBinary(command.cmd, env["PATH"]!);
+    let spawnCmd = command.cmd;
+    let spawnArgs = command.args;
+    let isShellFallback = false;
+    let fallbackBanner = "";
+    if (!resolved) {
+      const shell = this.pickShell(env);
+      const hint = INSTALL_HINTS[opts.agentId] ?? "";
+      const bold = "\x1b[1m";
+      const dim = "\x1b[2m";
+      const reset = "\x1b[0m";
+      const red = "\x1b[31m";
+      const cyan = "\x1b[36m";
+      fallbackBanner =
+        `\r\n${red}${bold}idex:${reset} couldn't find '${command.cmd}' on PATH.${reset}\r\n` +
+        (hint ? `${dim}install:${reset} ${cyan}${hint}${reset}\r\n` : "") +
+        `${dim}dropping into ${shell.cmd} — re-open the session once the agent is installed.${reset}\r\n\r\n`;
+      spawnCmd = shell.cmd;
+      spawnArgs = shell.args;
+      isShellFallback = true;
+      console.warn(`[idex] agent '${command.cmd}' not found; falling back to ${shell.cmd}`);
+    }
+
+    console.log(`[idex] spawn session=${sessionId} agent=${opts.agentId} cmd=${spawnCmd} cwd=${cwd} fallback=${isShellFallback}`);
 
     let pty: IPty;
     try {
-      pty = spawn(command.cmd, command.args, {
+      pty = spawn(spawnCmd, spawnArgs, {
         name: "xterm-256color",
-        cols: 120,
-        rows: 32,
+        cols: opts.env?.COLS ? Number(opts.env.COLS) : 100,
+        rows: opts.env?.ROWS ? Number(opts.env.ROWS) : 30,
         cwd,
         env: env as { [key: string]: string },
       });
     } catch (e) {
+      // node-pty throws synchronously if execvp fails. Even our shell
+      // fallback could in theory fail (no /bin/sh in the container). In
+      // that case surface a real error to the renderer instead of a crash.
       const msg = e instanceof Error ? e.message : String(e);
       console.error(`[idex] spawn failed: ${msg}`);
+      this.cbs?.onState({ sessionId, state: "error" });
       return {
         ok: false,
-        error: `Failed to spawn '${command.cmd}': ${msg}. Is it installed and on PATH?`,
+        error: `Failed to spawn '${spawnCmd}': ${msg}. Is a shell available?`,
       };
     }
 
@@ -105,19 +156,53 @@ class AgentHost {
       idleTimer: null,
       lastEmittedState: null,
       state: "idle",
+      isShellFallback,
     };
     this.sessions.set(sessionId, session);
     this.emitState(sessionId, "idle");
 
     pty.onData((data) => this.handleData(sessionId, data));
-    pty.onExit(() => {
-      console.log(`[idex] session ${sessionId} exited`);
+    pty.onExit(({ exitCode, signal }) => {
+      console.log(`[idex] session ${sessionId} exited code=${exitCode} signal=${signal ?? "-"}`);
+      const hadSession = this.sessions.has(sessionId);
       this.sessions.delete(sessionId);
+      if (!hadSession) return;
+      // A non-zero exit within the first 2s almost always means the shell
+      // we dropped into choked on something — push the exit code into the
+      // terminal so the user knows.
+      const diedFast = Date.now() - session.createdAt < 2000;
+      if (exitCode !== 0 && diedFast) {
+        const msg =
+          `\r\n\x1b[31m[idex] ${spawnCmd} exited with code ${exitCode}${signal ? ` (signal ${signal})` : ""}.\x1b[0m\r\n`;
+        this.cbs?.onOutput({
+          sessionId,
+          raw: msg,
+          clean: msg.replace(/\x1b\[[0-9;]*m/g, ""),
+          ts: Date.now(),
+        });
+        this.cbs?.onState({ sessionId, state: "error" });
+        return;
+      }
       // Natural exit (user typed `exit`, ctrl-D, etc.) → idle. Don't flash
-      // the tab red for graceful exits. Real spawn failures never reach
-      // onExit because they throw synchronously from pty.spawn().
+      // the tab red for graceful exits.
       this.cbs?.onState({ sessionId, state: "idle" });
     });
+
+    // Print the fallback banner AFTER registering onData so the banner is
+    // still picked up by the normal output pipeline (ensures the renderer
+    // sees it even if it connects a tick late).
+    if (fallbackBanner) {
+      // setImmediate instead of process.nextTick so the renderer has a tick
+      // to mount its listener after receiving the spawn success reply.
+      setImmediate(() => {
+        this.cbs?.onOutput({
+          sessionId,
+          raw: fallbackBanner,
+          clean: fallbackBanner.replace(/\x1b\[[0-9;]*m/g, ""),
+          ts: Date.now(),
+        });
+      });
+    }
 
     return {
       ok: true,
@@ -132,13 +217,67 @@ class AgentHost {
     };
   }
 
+  /** Look up `bin` on PATH (or return the input if it's already absolute). */
+  private resolveBinary(bin: string, pathEnv: string): string | null {
+    if (!bin) return null;
+    if (path.isAbsolute(bin)) {
+      try {
+        const fs = require("node:fs") as typeof import("node:fs");
+        return fs.existsSync(bin) ? bin : null;
+      } catch { return null; }
+    }
+    const fs = require("node:fs") as typeof import("node:fs");
+    const exts = process.platform === "win32"
+      ? (process.env["PATHEXT"] ?? ".EXE;.CMD;.BAT;.COM").split(";")
+      : [""];
+    for (const dir of pathEnv.split(path.delimiter)) {
+      if (!dir) continue;
+      for (const ext of exts) {
+        const full = path.join(dir, bin + ext);
+        try {
+          if (fs.existsSync(full)) return full;
+        } catch { /* ignore */ }
+      }
+    }
+    return null;
+  }
+
+  /** Pick the user's preferred interactive shell, with sensible fallbacks. */
+  private pickShell(env: Record<string, string>): { cmd: string; args: string[] } {
+    if (process.platform === "win32") {
+      const comspec = env["COMSPEC"] || "cmd.exe";
+      return { cmd: comspec, args: [] };
+    }
+    const fromEnv = env["SHELL"];
+    if (fromEnv) return { cmd: fromEnv, args: ["-l"] };
+    const candidates = ["/bin/zsh", "/bin/bash", "/bin/sh"];
+    const fs = require("node:fs") as typeof import("node:fs");
+    for (const c of candidates) {
+      try { if (fs.existsSync(c)) return { cmd: c, args: ["-l"] }; } catch { /* ignore */ }
+    }
+    return { cmd: "/bin/sh", args: [] };
+  }
+
   private handleData(sessionId: string, raw: string) {
     const session = this.sessions.get(sessionId);
     if (!session) return;
-    const adapter = getAdapter(session.agentId);
     session.buffer += raw;
     session.lastChunkAt = Date.now();
 
+    // When we fall back to a plain $SHELL, agent-adapter boundary detection
+    // would misfire on every PS1 redraw — so we short-circuit. The shell is
+    // always "idle" from the feed's perspective; the user is in charge.
+    if (session.isShellFallback) {
+      this.cbs?.onOutput({
+        sessionId,
+        raw,
+        clean: raw.replace(/\x1b\[[0-9;]*[A-Za-z]/g, ""),
+        ts: session.lastChunkAt,
+      });
+      return;
+    }
+
+    const adapter = getAdapter(session.agentId);
     const detection = adapter.detect({
       rawChunk: raw,
       bufferedSinceLastBoundary: session.buffer,
@@ -196,7 +335,14 @@ class AgentHost {
   resize(sessionId: string, cols: number, rows: number): void {
     const session = this.sessions.get(sessionId);
     if (!session) return;
-    try { session.pty.resize(cols, rows); } catch { /* ignore */ }
+    // node-pty asserts cols/rows >= 1 and will throw on 0 — guard here so
+    // a transient (0,0) from ResizeObserver during window-minimize doesn't
+    // tear down the PTY.
+    const c = Math.max(2, Math.floor(cols));
+    const r = Math.max(2, Math.floor(rows));
+    try { session.pty.resize(c, r); } catch (e) {
+      console.warn(`[idex] resize ${sessionId} -> ${c}x${r} failed:`, e);
+    }
   }
 
   kill(sessionId: string): void {

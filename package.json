@@ -23,6 +23,7 @@
     "dev:landing": "pnpm --filter @idex/landing dev",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --if-present test",
     "clean": "pnpm -r exec rm -rf dist node_modules .turbo && rm -rf node_modules"
   },
   "devDependencies": {

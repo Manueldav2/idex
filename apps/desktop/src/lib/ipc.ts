@@ -7,6 +7,9 @@ import type {
   AppConfig,
   ExternalAgentLaunchOptions,
   ExternalAgentLaunchResult,
+  ComposioConnectXRequest,
+  ComposioConnectXResult,
+  ComposioStatusResult,
   FileNode,
   KeychainKey,
   ProjectCreateFolderArgs,
@@ -47,6 +50,10 @@ declare global {
       };
       projects: {
         create: (args: ProjectCreateFolderArgs) => Promise<ProjectCreateFolderResult>;
+      };
+      composio: {
+        connectX: (req?: ComposioConnectXRequest) => Promise<ComposioConnectXResult>;
+        status: () => Promise<ComposioStatusResult>;
       };
     };
   }

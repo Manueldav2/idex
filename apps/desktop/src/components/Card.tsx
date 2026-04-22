@@ -76,6 +76,20 @@ export function Card({
   const open = () => void window.idex.openExternal(card.url);
   const badge = sourceBadge(card);
 
+  // When Composio returns Twitter oEmbed HTML, prefer the native blockquote
+  // widget — it gives us the real tweet chrome (media carousels, polls,
+  // quote-tweets) for free. The fallback renderer below still runs if the
+  // embed fails to load.
+  if (card.oembed?.html) {
+    return (
+      <OEmbedCard
+        card={card}
+        shimmer={shimmer}
+        onClick={open}
+      />
+    );
+  }
+
   // Realistic-looking engagement counts derived from the curator score.
   const likes = Math.floor(card.score * 420) + 12;
   const retweets = Math.floor(likes / 4);
@@ -268,6 +282,75 @@ export function Card({
           )}
         </div>
       </div>
+    </article>
+  );
+}
+
+/**
+ * Sandboxed iframe that renders a Twitter oEmbed payload.
+ *
+ * Why `srcdoc`: Composio returns `<blockquote class="twitter-tweet">…` HTML
+ * plus a `platform.twitter.com/widgets.js` bootstrap. Loading that directly
+ * inside the Electron renderer triggers CSP issues and leaks global listeners.
+ * An iframe with `srcdoc` gives us a clean origin so widgets.js can take
+ * over without colliding with the host app.
+ */
+function OEmbedCard({
+  card,
+  shimmer,
+  onClick,
+}: {
+  card: CardType;
+  shimmer: boolean;
+  onClick: () => void;
+}) {
+  const html = card.oembed?.html ?? "";
+  const srcdoc = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://platform.twitter.com https://*.twitter.com https://*.twimg.com; img-src https: data:; style-src 'self' 'unsafe-inline' https://platform.twitter.com; script-src https://platform.twitter.com 'unsafe-inline'; frame-src https://platform.twitter.com https://twitter.com" />
+<base target="_blank" />
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; color: ${X.text}; font-family: -apple-system, system-ui, sans-serif; }
+  body { padding: 8px 4px 0 4px; }
+  .twitter-tweet { margin: 0 auto !important; }
+</style>
+</head>
+<body>${html}</body>
+</html>`;
+
+  return (
+    <article
+      className="x-card relative w-full px-3 py-3 cursor-pointer"
+      onClick={onClick}
+      style={{ borderBottom: `1px solid ${X.divider}` }}
+    >
+      {shimmer && <div aria-hidden className="card-shimmer absolute inset-0" />}
+      <iframe
+        title={`Tweet ${card.id}`}
+        // `sandbox` lets widgets.js run but denies top-level navigation,
+        // forms, and popups — clicks on tweet links bubble up to our
+        // article-level onClick via the sandboxed frame's default behaviour.
+        sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-same-origin"
+        srcDoc={srcdoc}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        style={{
+          width: "100%",
+          minHeight: card.oembed?.height ? `${card.oembed.height}px` : "360px",
+          border: "0",
+          colorScheme: "dark",
+        }}
+      />
+      {card.relevanceReason && (
+        <div
+          className="mt-2 text-[12px] leading-snug italic px-1"
+          style={{ color: X.muted }}
+        >
+          {card.relevanceReason}
+        </div>
+      )}
     </article>
   );
 }

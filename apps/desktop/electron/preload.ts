@@ -9,6 +9,9 @@ import type {
   AppConfig,
   ExternalAgentLaunchOptions,
   ExternalAgentLaunchResult,
+  ComposioConnectXRequest,
+  ComposioConnectXResult,
+  ComposioStatusResult,
   FileNode,
   KeychainKey,
   ProjectCreateFolderArgs,
@@ -60,6 +63,11 @@ const api = {
   projects: {
     create: (args: ProjectCreateFolderArgs): Promise<ProjectCreateFolderResult> =>
       ipcRenderer.invoke(IPC.PROJECTS_CREATE_FOLDER, args),
+  },
+  composio: {
+    connectX: (req: ComposioConnectXRequest = {}): Promise<ComposioConnectXResult> =>
+      ipcRenderer.invoke(IPC.COMPOSIO_CONNECT_X, req),
+    status: (): Promise<ComposioStatusResult> => ipcRenderer.invoke(IPC.COMPOSIO_STATUS),
   },
 };
 

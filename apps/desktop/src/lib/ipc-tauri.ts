@@ -102,6 +102,17 @@ export async function installTauriBridge(): Promise<void> {
       create: (args: ProjectCreateFolderArgs) =>
         invoke<ProjectCreateFolderResult>("projects_create_folder", { args }),
     },
+    // Composio bridge — not yet implemented on the Rust side, so every
+    // method resolves to a graceful "not connected" state. The Electron
+    // host has the real implementation; Tauri parity is tracked as a
+    // follow-up.
+    composio: {
+      connectX: async () => ({
+        ok: false,
+        error: "Composio integration is not yet available on the Tauri backend.",
+      }),
+      status: async () => ({ ok: true, status: "UNKNOWN" as const }),
+    },
   };
 
   (window as Window & typeof globalThis).idex = idex;

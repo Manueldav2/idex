@@ -1,0 +1,13 @@
+> fix the flaky test in auth.spec.ts
+
+⏺ I'll inspect the flaky test and figure out what's racing.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏺ Done — the test was racing on the session cookie. Patched it to await
+  the login response before asserting.
+
+Changes:
+- tests/auth.spec.ts: replaced `.then(done)` with `await` boundary
+
+> 

@@ -45,6 +45,33 @@ export function FeedPane() {
     if (cards.length === 0) refresh();
   }, [cards.length, refresh]);
 
+  // Keyboard nav in expanded feed: Arrow↑/↓ and j/k move the focused-card
+  // rail, Esc collapses back to peek. We only attach when expanded so the
+  // terminal keeps its key bindings in cockpit/peek mode.
+  useEffect(() => {
+    if (state !== "expanded") return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const inEditable =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+      if (inEditable) return;
+      if (e.key === "ArrowDown" || e.key === "j") {
+        e.preventDefault();
+        setFocusedIdx((i) => Math.min(i + 1, Math.max(0, cards.length - 1)));
+      } else if (e.key === "ArrowUp" || e.key === "k") {
+        e.preventDefault();
+        setFocusedIdx((i) => Math.max(i - 1, 0));
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setState("peek");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [state, cards.length, setState]);
+
   // Count source-origin mix for the curator indicator.
   const sourceMix = countSources(cards);
 

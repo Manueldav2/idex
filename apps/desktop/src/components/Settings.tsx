@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X as CloseIcon,
@@ -119,20 +119,35 @@ export function Settings({
     setStatus(st);
   };
 
-  // Close on Escape. Mirrors the common command-palette pattern — the
-  // backdrop click-to-close already exists below, this adds the keyboard
-  // affordance. Only bound while the drawer is open.
+  // Close on Escape. We listen at the document level in the capture
+  // phase so xterm's focused terminal can't swallow the event before
+  // us. Only bound while the drawer is open.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === "function") {
+          e.stopImmediatePropagation();
+        }
         onClose();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
   }, [open, onClose]);
+
+  // Auto-focus the drawer when it opens so keyboard shortcuts land
+  // here (not the terminal) and screen readers announce the dialog.
+  const drawerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const id = window.requestAnimationFrame(() => {
+      drawerRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [open]);
 
   return (
     <AnimatePresence>
@@ -146,11 +161,13 @@ export function Settings({
             onClick={onClose}
           />
           <motion.aside
+            ref={drawerRef}
+            tabIndex={-1}
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="fixed right-0 top-0 bottom-0 z-50 w-[460px] max-w-full bg-ink-1 border-l border-line shadow-2xl overflow-y-auto"
+            className="fixed right-0 top-0 bottom-0 z-50 w-[460px] max-w-full bg-ink-1 border-l border-line shadow-2xl overflow-y-auto outline-none"
             role="dialog"
             aria-label="Settings"
           >

@@ -119,6 +119,21 @@ export function Settings({
     setStatus(st);
   };
 
+  // Close on Escape. Mirrors the common command-palette pattern — the
+  // backdrop click-to-close already exists below, this adds the keyboard
+  // affordance. Only bound while the drawer is open.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   return (
     <AnimatePresence>
       {open && (

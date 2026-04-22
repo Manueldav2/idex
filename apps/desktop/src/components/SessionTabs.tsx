@@ -73,11 +73,6 @@ export function SessionTabs() {
       >
         <Plus className="size-3.5" /> new
       </button>
-      {order.length === 0 && (
-        <span className="text-[11px] text-text-secondary font-mono ml-2">
-          click <span className="text-accent">+ new</span> or press ⌘T to start
-        </span>
-      )}
       <ShortcutHint />
     </div>
   );
@@ -135,12 +130,10 @@ function ShortcutHint() {
             <span className="mx-1.5">
               <kbd className="px-1 py-0.5 rounded border border-line text-text-primary">⌘K</kbd> for commands
             </span>
-            <span className="opacity-50 text-[10px]">(soon)</span>
             <span className="opacity-50 mx-1.5">·</span>
             <span>
               <kbd className="px-1 py-0.5 rounded border border-line text-text-primary">⌘E</kbd> for editor mode
             </span>
-            <span className="opacity-50 text-[10px]"> (soon)</span>
           </div>
         </motion.div>
       )}

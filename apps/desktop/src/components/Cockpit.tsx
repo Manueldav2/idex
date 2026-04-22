@@ -81,6 +81,12 @@ export function Cockpit() {
         return;
       }
 
+      if (e.key === ",") {
+        e.preventDefault();
+        setSettingsOpen((v) => !v);
+        return;
+      }
+
       if (e.key === "e" || e.key === "E") {
         e.preventDefault();
         setMode(mode === "agent" ? "editor" : "agent");
@@ -215,7 +221,7 @@ export function Cockpit() {
               <div className="mt-1.5 text-[11px] font-mono text-text-secondary">
                 install:{" "}
                 <code className="bg-ink-0 px-1.5 py-0.5 rounded border border-line">
-                  npm i -g @anthropic-ai/claude-code
+                  {installCommandFor(config.selectedAgent)}
                 </code>
               </div>
             </div>
@@ -299,6 +305,9 @@ export function Cockpit() {
                 <span className="opacity-70">
                   <kbd className="px-1 py-0.5 rounded border border-line">⌘P</kbd> autopilot
                 </span>
+                <span className="opacity-70">
+                  <kbd className="px-1 py-0.5 rounded border border-line">⌘,</kbd> settings
+                </span>
                 <span className="opacity-50 ml-2">·</span>
                 <span>{order.length} session{order.length === 1 ? "" : "s"}</span>
               </>
@@ -310,6 +319,9 @@ export function Cockpit() {
                 </span>
                 <span className="opacity-70">
                   <kbd className="px-1 py-0.5 rounded border border-line">⌘K</kbd> palette
+                </span>
+                <span className="opacity-70">
+                  <kbd className="px-1 py-0.5 rounded border border-line">⌘,</kbd> settings
                 </span>
                 {autopilotGoal && (
                   <span className="opacity-70">
@@ -324,10 +336,16 @@ export function Cockpit() {
                   <kbd className="px-1 py-0.5 rounded border border-line">⌘S</kbd> save
                 </span>
                 <span className="opacity-70">
+                  <kbd className="px-1 py-0.5 rounded border border-line">⌘B</kbd> sidebar
+                </span>
+                <span className="opacity-70">
                   <kbd className="px-1 py-0.5 rounded border border-line">⌘E</kbd> agent
                 </span>
                 <span className="opacity-70">
                   <kbd className="px-1 py-0.5 rounded border border-line">⌘K</kbd> palette
+                </span>
+                <span className="opacity-70">
+                  <kbd className="px-1 py-0.5 rounded border border-line">⌘,</kbd> settings
                 </span>
               </>
             )}
@@ -345,7 +363,11 @@ export function Cockpit() {
 
       <FeedPane />
 
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
 
       <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
@@ -445,13 +467,32 @@ function EmptyState({ onNew }: { onNew: () => void }) {
  * Shorten an absolute path by replacing $HOME with "~". Keeps the header
  * chip readable without losing the "which folder" context. The preload
  * doesn't expose HOME directly and Node env isn't available in the
- * renderer, so we heuristic-match /Users/<name>/… (macOS) and
- * C:\Users\<name>\… (Windows) and collapse to ~.
+ * renderer, so we heuristic-match /Users/<name>/… (macOS), /home/<name>/…
+ * (Linux), and C:\Users\<name>\… (Windows) and collapse to ~.
  */
 function shortenHome(p: string): string {
   const macMatch = p.match(/^\/Users\/[^/]+(\/.*)?$/);
   if (macMatch) return `~${macMatch[1] ?? ""}`;
+  const linuxMatch = p.match(/^\/home\/[^/]+(\/.*)?$/);
+  if (linuxMatch) return `~${linuxMatch[1] ?? ""}`;
   const winMatch = p.match(/^([A-Z]:\\Users\\[^\\]+)(\\.*)?$/);
   if (winMatch) return `~${(winMatch[2] ?? "").replace(/\\/g, "/")}`;
   return p;
+}
+
+/**
+ * Map the selected agent to its npm install command. Surfaced in the
+ * "couldn't start your agent" banner so the user sees the right fix for
+ * whichever agent they picked, not a hardcoded Claude Code suggestion.
+ */
+function installCommandFor(agent: string): string {
+  switch (agent) {
+    case "codex":
+      return "npm i -g @openai/codex";
+    case "freebuff":
+      return "npm i -g freebuff";
+    case "claude-code":
+    default:
+      return "npm i -g @anthropic-ai/claude-code";
+  }
 }

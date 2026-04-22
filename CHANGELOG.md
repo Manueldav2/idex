@@ -5,6 +5,23 @@ All notable changes to IDEX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Phase 2
+
+### Added
+- **Real curator via GLM-4.6** (`z-ai/glm-4.6` on OpenRouter) with JSON-schema structured output, 5s timeout, graceful fallback to the deterministic planner.
+- **Composio Twitter integration** — REST client for `TWITTER_SEARCH_TWEETS`, OAuth flow (initiate → external browser → poll `/connected_accounts/{id}` → persist `connectedAccountId`), token-bucket rate limiting (300 / 15 min per account), and a stale-while-revalidate in-memory cache (15 min TTL keyed on `${accountId}::${query}`).
+- **Twitter oEmbed renderer** — when Composio returns `oembed.html`, cards render inside a sandboxed `srcdoc` iframe with `platform.twitter.com` whitelisted in the CSP. Falls back to the structured card when oEmbed is absent.
+- **Settings drawer** — right-side drawer from the cockpit header: agent picker, OpenRouter + Composio key/auth-config inputs (stored in keychain only), Composio connection status + Connect X button, curator toggle, sponsored cards toggle, anonymous telemetry toggle, autoscroll speed slider, privacy panic mode.
+- **Opt-in anonymous telemetry** — fire-and-forget 2s-timeout POST of `{ topicHash, cardId, action, source, ts }`. No prompts, no code, no handles. SHA-256 salted topic hash (with FNV-1a fallback for non-crypto envs). No-ops entirely when disabled or endpoint unset.
+- **Adapter test fixtures + vitest** — 5 captured Claude Code TUI snapshots (idle, generating, agent-done, ANSI-colored prompt, short banner) and 6 `detect()` assertions.
+- New IPC channels `composio:connectX` and `composio:status`, exposed on `window.idex.composio`.
+- New `CuratorCredentials` + `curateLive()` async curator that interleaves Composio + HN + Reddit + Bluesky results and degrades gracefully on any failure.
+
+### Changed
+- Feed store now runs a two-pass refresh: synchronous starter cards first, then async `curateLive` with credentials. Stale in-flight responses are de-duped by request counter.
+- CSP widened to allow `https://openrouter.ai`, `https://backend.composio.dev`, `https://api.composio.dev`, and `https://platform.twitter.com` (iframe) / `https://twitter.com` (frame-src).
+- Cockpit Settings button now opens the Settings drawer instead of resetting the privacy disclosure.
+
 ## [v0.1.0.1] — 2026-04-20
 
 ### Fixed

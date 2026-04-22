@@ -85,6 +85,8 @@ export const IPC = {
   WORKSPACE_READ_FILE: "workspace:read-file",
   WORKSPACE_WRITE_FILE: "workspace:write-file",
   PROJECTS_CREATE_FOLDER: "projects:create-folder",
+  COMPOSIO_CONNECT_X: "composio:connect-x",
+  COMPOSIO_STATUS: "composio:status",
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
@@ -194,6 +196,8 @@ export interface AppConfig {
   hasSeenShortcutHint: boolean;
   /** LRU-ordered list of recently opened workspace folders (most recent first). */
   recentProjects: RecentProject[];
+  /** Opt-in anonymised telemetry for card impressions / thumbs. */
+  curatorTelemetryEnabled: boolean;
 }
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
@@ -210,6 +214,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   workspacePath: null,
   hasSeenShortcutHint: false,
   recentProjects: [],
+  curatorTelemetryEnabled: false,
 };
 
 /* ────────────────────────────────────────── *
@@ -277,8 +282,35 @@ export const KEYCHAIN_SERVICE = "com.devvcore.idex" as const;
 
 export const KEYCHAIN_KEY = {
   COMPOSIO_API_KEY: "composio-api-key",
+  COMPOSIO_AUTH_CONFIG_ID: "composio-auth-config-id",
   OPENROUTER_API_KEY: "openrouter-api-key",
 } as const;
+
+/* ────────────────────────────────────────── *
+ * Composio IPC payloads                      *
+ * ────────────────────────────────────────── */
+
+export interface ComposioConnectXRequest {
+  /** Optional override — normally read from keychain. */
+  apiKey?: string;
+  /** Composio auth-config id — if absent, main reads from keychain. */
+  authConfigId?: string;
+}
+
+export interface ComposioConnectXResult {
+  ok: boolean;
+  /** Active connected account id on success. */
+  connectedAccountId?: string;
+  /** Error label ("missing_api_key" | "timeout" | "failed" | "cancelled" | string). */
+  error?: string;
+}
+
+export interface ComposioStatusResult {
+  ok: boolean;
+  status?: "INITIATED" | "ACTIVE" | "FAILED" | "EXPIRED" | "UNKNOWN";
+  connectedAccountId?: string | null;
+  error?: string;
+}
 
 export type KeychainKey = (typeof KEYCHAIN_KEY)[keyof typeof KEYCHAIN_KEY];
 

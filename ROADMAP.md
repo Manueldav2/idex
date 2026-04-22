@@ -17,16 +17,17 @@
 - [x] electron-builder config (mac dmg/zip arm64+x64, unsigned)
 - [x] CI on macOS + Linux (typecheck + build)
 
-## 🛠 Phase 2 — The magic moment
+## ✅ Phase 2 — The magic moment
 *"The feed actually pulls real, contextual content from X."*
 
-- [ ] Real Curator: GLM-4.6 via OpenRouter (structured-output JSON)
-- [ ] Composio integration: REST tool execution for `TWITTER_SEARCH_TWEETS`
-- [ ] OAuth flow with hosted Composio portal + status polling
-- [ ] Twitter oEmbed renderer (with fallback to structured Card)
-- [ ] Feed cache + token-bucket rate limiting
-- [ ] Curator settings panel (model picker, query budget, panic mode)
-- [ ] Adapter test fixtures (capture real Claude Code TUI snapshots)
+- [x] Real Curator: GLM-4.6 via OpenRouter (structured-output JSON)
+- [x] Composio integration: REST tool execution for `TWITTER_SEARCH_TWEETS`
+- [x] OAuth flow with hosted Composio portal + status polling
+- [x] Twitter oEmbed renderer (with fallback to structured Card)
+- [x] Feed cache + token-bucket rate limiting
+- [x] Curator settings panel (agent picker, keys, curator + telemetry toggles, panic mode)
+- [x] Adapter test fixtures + vitest (captured Claude Code TUI snapshots)
+- [x] Opt-in anonymous telemetry (topicHash + cardId + action, no PII)
 
 ## 🚀 Phase 3 — Multi-agent + public release
 - [ ] Codex adapter (verify against live CLI)

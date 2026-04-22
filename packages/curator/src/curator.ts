@@ -4,6 +4,8 @@ import { getStarterCards } from "./starter-feed.js";
 import { searchHackerNews } from "./hn.js";
 import { searchReddit } from "./reddit.js";
 import { searchBluesky } from "./bluesky.js";
+import { callGLM46 } from "./openrouter.js";
+import { searchTweets } from "./composio.js";
 
 const STOP_WORDS = new Set([
   "the","a","an","of","and","or","but","is","are","was","were","be","been",
@@ -80,22 +82,70 @@ export function curate(input: CuratorInput): { plan: CuratorPlan; cards: Card[] 
   return { plan, cards };
 }
 
-interface CurateLiveOptions {
+/**
+ * Build a compact transcript string from the recent event list. Trims to
+ * the last ~8 turns so the prompt stays under the model's input budget.
+ */
+function buildTranscript(events: ContextEvent[]): string {
+  const recent = events.slice(-8);
+  const lines: string[] = [];
+  for (const e of recent) {
+    if (e.kind === "user_input" && "text" in e) {
+      lines.push(`USER: ${e.text.slice(0, 600)}`);
+    } else if (e.kind === "agent_done" && "text" in e) {
+      lines.push(`AGENT: ${e.text.slice(0, 400)}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+export interface CuratorCredentials {
+  /** OpenRouter API key. When absent, the curator skips the LLM step. */
+  openrouterApiKey?: string | null;
+  /** Composio API key. Required for X search. */
+  composioApiKey?: string | null;
+  /** Composio connected-account id for the user's X account. */
+  composioConnectedAccountId?: string | null;
+}
+
+export interface CurateLiveOptions {
   /** Max cards in the final result set. Larger values = longer feel-real feed. */
   limit?: number;
+  credentials?: CuratorCredentials;
 }
 
 /**
- * Async curator — searches Hacker News, Reddit, and Bluesky in parallel
- * across several topics. Returns a much bigger ranked set so the feed
- * feels like an actual infinite stream instead of a 12-card demo.
+ * Async curator — searches X (via Composio) if connected, and always
+ * pulls from Hacker News, Reddit, and Bluesky in parallel. When an
+ * OpenRouter key is provided, GLM-4.6 generates the topic plan; otherwise
+ * we fall back to deterministic keyword extraction.
  */
 export async function curateLive(
   input: CuratorInput,
   opts: CurateLiveOptions = {},
 ): Promise<{ plan: CuratorPlan; cards: Card[] }> {
-  const plan = planFromContext(input);
+  const deterministic = planFromContext(input);
   const limit = opts.limit ?? 40;
+  const creds = opts.credentials ?? {};
+
+  let plan: CuratorPlan = deterministic;
+
+  // Try GLM-4.6 for a smarter plan. Fail silently and keep the
+  // deterministic plan on any error.
+  if (creds.openrouterApiKey) {
+    try {
+      const conversation = buildTranscript(input.recentEvents);
+      if (conversation.length > 0) {
+        plan = await callGLM46({
+          apiKey: creds.openrouterApiKey,
+          conversation,
+          projectHint: input.projectHint,
+        });
+      }
+    } catch {
+      plan = deterministic;
+    }
+  }
 
   // Starter feed always contributes as a backstop — ranked low so live hits
   // push it to the bottom of the feed.
@@ -104,7 +154,7 @@ export async function curateLive(
     count: 8,
   });
 
-  // Build a rich query set. If the user's prompts gave us real signal, use
+  // Build a rich query set. If the curator plan gave us real signal, use
   // those topics. Otherwise, fall back to ambient dev topics so the feed is
   // immediately alive on first open.
   const rawTopics = [...plan.directTopics, ...plan.adjacentTopics]
@@ -114,15 +164,32 @@ export async function curateLive(
   // Cap at 5 queries to keep parallel fetch count reasonable.
   const queries = topics.slice(0, 5);
 
-  // Three sources × up to 5 queries = up to 15 parallel fetches. Each has a
-  // 4s AbortSignal timeout, so worst case we wait ~4s and get partial data.
-  const liveResults = await Promise.all(
-    queries.flatMap((q) => [
-      searchHackerNews(q, 8),
-      searchReddit(q, 6),
-      searchBluesky(q, 10),
-    ]),
-  );
+  const xQueries = (plan.xQueries.length > 0 ? plan.xQueries : queries).slice(0, 4);
+
+  // Sources run in parallel — each returns [] on failure. The live X pane
+  // is gated on Composio creds; when missing, we skip it entirely.
+  const hasX = Boolean(creds.composioApiKey && creds.composioConnectedAccountId);
+
+  const fetches: Array<Promise<Card[]>> = [];
+  for (const q of queries) {
+    fetches.push(searchHackerNews(q, 6));
+    fetches.push(searchReddit(q, 5));
+    fetches.push(searchBluesky(q, 8));
+  }
+  if (hasX) {
+    for (const q of xQueries) {
+      fetches.push(
+        searchTweets({
+          apiKey: creds.composioApiKey!,
+          connectedAccountId: creds.composioConnectedAccountId!,
+          query: q,
+          maxResults: 10,
+        }),
+      );
+    }
+  }
+
+  const liveResults = await Promise.all(fetches);
   const live = liveResults.flat();
 
   // Dedupe by id.
@@ -133,8 +200,8 @@ export async function curateLive(
     return true;
   });
 
-  // Light source-balancing: interleave HN / Reddit / Bluesky so the feed
-  // doesn't look like 20 HN items in a row.
+  // Light source-balancing: interleave sources so the feed doesn't look
+  // like 20 tweets followed by 20 HN items.
   const bySrc = new Map<Card["source"], Card[]>();
   for (const c of liveUnique) {
     const bucket = bySrc.get(c.source) ?? [];

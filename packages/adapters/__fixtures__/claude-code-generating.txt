@@ -1,0 +1,5 @@
+> fix the flaky test in auth.spec.ts
+
+⏺ I'll inspect the flaky test and figure out what's racing.
+
+Press Esc to interrupt

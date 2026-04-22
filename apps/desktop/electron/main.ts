@@ -8,6 +8,7 @@ import {
   type AgentInput,
   type AgentResize,
   type AppConfig,
+  type ComposioConnectXRequest,
   type KeychainKey,
   type ProjectCreateFolderArgs,
   type ProjectCreateFolderResult,
@@ -16,6 +17,7 @@ import { agentHost } from "./agent-host.js";
 import { configStore } from "./config-store.js";
 import { keychain } from "./keychain.js";
 import { workspace } from "./workspace.js";
+import { connectX, readStatus } from "./composio-oauth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !!process.env["VITE_DEV_SERVER_URL"];
@@ -101,6 +103,11 @@ function registerIpc() {
   ipcMain.handle(IPC.PROJECTS_CREATE_FOLDER, async (_, args: ProjectCreateFolderArgs) =>
     createProjectFolder(args),
   );
+
+  ipcMain.handle(IPC.COMPOSIO_CONNECT_X, async (_, req: ComposioConnectXRequest) =>
+    connectX(req ?? {}),
+  );
+  ipcMain.handle(IPC.COMPOSIO_STATUS, async () => readStatus());
 }
 
 /**

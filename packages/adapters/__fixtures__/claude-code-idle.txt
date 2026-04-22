@@ -1,0 +1,8 @@
+╭──────────────────────────────────────────────────╮
+│ Welcome to Claude Code, your AI pair programmer. │
+╰──────────────────────────────────────────────────╯
+
+cwd: /Users/manny/projects/idex
+model: claude-sonnet-4-5
+
+> 

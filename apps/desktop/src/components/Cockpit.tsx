@@ -16,6 +16,7 @@ import { AutopilotLauncher } from "./autopilot/AutopilotLauncher";
 import { Sidebar } from "./Sidebar";
 import { CommandPalette } from "./CommandPalette";
 import { ProjectsLauncher } from "./projects/ProjectsLauncher";
+import { Settings as SettingsDrawer } from "./Settings";
 import {
   Folder,
   FolderOpen,
@@ -49,6 +50,7 @@ export function Cockpit() {
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [projectsModalOpen, setProjectsModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const mode: CockpitMode = config.mode ?? "agent";
   const setMode = (next: CockpitMode) => {
@@ -194,7 +196,7 @@ export function Cockpit() {
               {feedState === "peek" ? <PanelRightOpen className="size-4" /> : <PanelRightClose className="size-4" />}
             </button>
             <button
-              onClick={() => void patchConfig({ privacyDisclosureAccepted: false })}
+              onClick={() => setSettingsOpen(true)}
               title="Settings"
               className="press-feedback p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-ink-2 transition-colors"
             >
@@ -344,6 +346,8 @@ export function Cockpit() {
       <FeedPane />
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+
+      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <AnimatePresence>
         {projectsModalOpen && (

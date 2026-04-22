@@ -16,14 +16,19 @@ const STOP_WORDS = new Set([
   "i","me","my","we","you","your","it","its","do","does","did","done","ok",
   // Imperative and filler verbs — "find me", "show me", "give me" are
   // conversational frames, not search signal. Dropping them means
-  // "find me the best claude code skills" queries as "best claude code
+  // "find me the best claude code skills" queries as "claude code
   // skills" — the thing the user actually wants to find.
   "let","make","build","fix","help","need","want","please","try","then",
   "find","show","give","get","put","take","run","call","check","see","look",
-  "use","using","using","used","go","goes","going","went","come","came",
+  "use","using","used","go","goes","going","went","come","came",
   "add","tell","ask","say","said","know","knows","think","thinks","thought",
-  // Over-general nouns from engineering prose
-  "code","app","page","file","line","why","how","what","where","when","who",
+  "best","better","good","great","awesome",
+  // Generic grammar / filler. NB: we deliberately do NOT include "code",
+  // "app", "file", "page" — they're essential compound-word roots
+  // ("claude code", "next.js app router", "file watcher"). Dropping
+  // them collapsed "claude code skills" into "claude skills" which
+  // returned Claude-the-AI-generic junk.
+  "why","how","what","where","when","who",
   "like","can","will","would","should","could","just","really","maybe",
   "thing","stuff","some","any","all","lots","more","most","less","same",
   "about","into","onto","over","under","than","also","here","there","now",
@@ -31,6 +36,32 @@ const STOP_WORDS = new Set([
   // Ambient filler
   "very","super","actually","basically","probably","definitely","kinda",
 ]);
+
+/**
+ * Compound phrases we want to keep intact across the query plan.
+ * "claude code" is the single most important one — without this the
+ * planner sometimes splits it into `claude` (generic Anthropic) and
+ * `code` (stop-worded away) and the user gets Tucker Carlson instead
+ * of Claude Code posts. Same principle for other high-signal term
+ * clusters that any tokenizer would otherwise break.
+ */
+const PROTECTED_PHRASES = [
+  "claude code",
+  "claude skills",
+  "cursor ide",
+  "next.js app router",
+  "app router",
+  "server components",
+  "react server components",
+  "tailwind css",
+  "open ai",
+  "openai codex",
+];
+
+function findProtectedPhrases(text: string): string[] {
+  const low = text.toLowerCase();
+  return PROTECTED_PHRASES.filter((p) => low.includes(p));
+}
 
 /** Default / ambient developer queries — used when the user's prompt hasn't
  *  given us much signal yet, so the feed still feels alive on first open. */
@@ -152,28 +183,50 @@ export function planFromContext(input: CuratorInput): CuratorPlan {
   const promptText =
     lastUserPrompt && "text" in lastUserPrompt ? lastUserPrompt.text.trim() : "";
   const smartQueries: string[] = [];
+
+  // 1. Protected phrases first — if the prompt contains "claude code",
+  //    "app router", etc., surface them as highest-priority queries
+  //    before any tokenisation can break them apart. These are the
+  //    single best query form because they're exact phrases the user
+  //    used and they map to real search terms on X/HN/Reddit.
+  const protectedInPrompt = findProtectedPhrases(promptText);
+  for (const p of protectedInPrompt) smartQueries.push(p);
+
   if (promptText.length >= 4) {
-    // Take up to the first ~8 significant words of the prompt. Strip
-    // punctuation that confuses query parsers, drop stop-words so the
-    // query stays dense with signal. We keep longer phrases over
-    // shorter ones so "claude code skills" wins over "skills".
+    // 2. Extract content words and pair each with the protected phrase
+    //    it was near, so "find me the best claude code skills and
+    //    design skills" yields "claude code skills" (protected phrase
+    //    + next content noun) rather than "skills best".
     const words = promptText
       .replace(/[^\p{L}\p{N}\s#-]/gu, " ")
       .trim()
       .split(/\s+/)
-      .filter((w) => w.length >= 2 && !STOP_WORDS.has(w.toLowerCase()))
-      .slice(0, 8);
-    if (words.length >= 2) smartQueries.push(words.join(" "));
-    if (words.length >= 3) smartQueries.push(words.slice(0, 3).join(" "));
+      .filter((w) => w.length >= 2 && !STOP_WORDS.has(w.toLowerCase()));
+
+    // "claude code skills", "claude code design" etc.
+    for (const phrase of protectedInPrompt) {
+      for (const w of words) {
+        const wl = w.toLowerCase();
+        if (phrase.split(/\s+/).includes(wl)) continue;
+        smartQueries.push(`${phrase} ${w}`);
+      }
+    }
+
+    // 3. Full trimmed prompt (capped) as a catch-all phrase query. X's
+    //    phrase-quoting will do the right thing with this; HN/Reddit
+    //    tokenise on it naturally.
+    const trimmedWords = words.slice(0, 6);
+    if (trimmedWords.length >= 2) smartQueries.push(trimmedWords.join(" "));
   }
-  if (topics.length >= 2) {
-    // "<top-topic> <second-topic>" — e.g. "claude skills" — as an
-    // intermediate specificity.
+  if (topics.length >= 2 && protectedInPrompt.length === 0) {
     smartQueries.push(`${topics[0]} ${topics[1]}`);
   }
-  // Single topics as a last-resort broadening so we always have *some*
-  // queries even if the prompt was 1-2 words.
-  smartQueries.push(...topics.slice(0, 3));
+  // Never just a single word — single-token queries are what produced
+  // "skills" matching resumes and tomodachi life. Only append them as
+  // a last resort when we have truly nothing else.
+  if (smartQueries.length === 0) {
+    smartQueries.push(...topics.slice(0, 3));
+  }
 
   // De-dupe preserving order (first occurrence wins — most specific first).
   const seen = new Set<string>();

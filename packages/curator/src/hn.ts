@@ -57,6 +57,11 @@ function hnToCard(h: HNHit, query: string): Card {
       author: {
         name: h.author,
         handle: `HN · ${h.points ?? 0} pts · ${h.num_comments ?? 0} comments`,
+        // DiceBear identicon — seeded on the HN username so the same
+        // poster always gets the same avatar. HN itself doesn't expose
+        // avatars at all, so without this the card renders a generic
+        // orange blob.
+        avatarUrl: `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(h.author)}&backgroundColor=FF6600,E2E2E2`,
       },
       createdAt: h.created_at,
     },

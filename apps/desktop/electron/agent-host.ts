@@ -161,6 +161,18 @@ class AgentHost {
     this.sessions.set(sessionId, session);
     this.emitState(sessionId, "idle");
 
+    // Turn off terminal-side bracketed paste for shell-fallback sessions.
+    // xterm.js wraps pasted text in `\e[200~...\e[201~` when bracketed paste
+    // is enabled; bash's readline in a plain fallback shell doesn't filter
+    // those markers, so users would see a literal `[200~pwd` on the line.
+    // DECRST 2004 (`\e[?2004l`) tells xterm "this app doesn't understand
+    // bracketed paste — send pastes raw." Agent-backed sessions (claude,
+    // codex, freebuff) negotiate this themselves, so we only do it for
+    // the fallback path.
+    if (isShellFallback) {
+      pty.write("\x1b[?2004l");
+    }
+
     pty.onData((data) => this.handleData(sessionId, data));
     pty.onExit(({ exitCode, signal }) => {
       console.log(`[idex] session ${sessionId} exited code=${exitCode} signal=${signal ?? "-"}`);

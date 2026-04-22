@@ -19,6 +19,10 @@ interface AutopilotStore {
   /** Last error surfaced from start() or a session-level failure. */
   error: string | null;
 
+  /** Subscribe this store to the backing session's AgentState so status
+   *  transitions from "running" → "done"/"error" the moment Claude finishes.
+   *  Returns an unsubscribe function; call once on app mount. */
+  bindToAgent: () => () => void;
   /** Kick off a new autopilot run: spawn a session, send the kickoff prompt,
    *  expand the feed. Safe to call only when idle. */
   start: (goal: string) => Promise<void>;
@@ -37,11 +41,42 @@ export const useAutopilot = create<AutopilotStore>((set, get) => ({
   startedAt: null,
   error: null,
 
+  bindToAgent() {
+    // Watch the specific session driving this autopilot run. When its
+    // AgentState reaches "done" we mark autopilot done too (the status pill
+    // flips, elapsed timer freezes). Errors bubble up the same way. We
+    // do NOT close the session — the transcript is still useful to the
+    // user, and cancel() is the explicit teardown path.
+    const unsub = useAgent.subscribe((store, prev) => {
+      const id = get().sessionId;
+      if (!id) return;
+      const current = store.sessions[id]?.session.state;
+      const before = prev.sessions[id]?.session.state;
+      if (current === before) return;
+      if (current === "done" && get().status === "running") {
+        set({ status: "done" });
+      } else if (current === "error" && get().status === "running") {
+        set({
+          status: "error",
+          error: "Autopilot session errored. Inspect the transcript above.",
+        });
+      } else if (current === "generating" && get().status === "done") {
+        // The session woke back up — e.g. user injected context. Reflect that.
+        set({ status: "running" });
+      }
+    });
+    return unsub;
+  },
+
   async start(goal) {
     const trimmed = goal.trim();
     if (!trimmed) return;
+    // Race-safe guard: flip status BEFORE any await so a rapid second
+    // click can't sneak in between the guard read and the state write.
+    // Previously `status !== "idle"` was read, then we awaited
+    // createSession, then set status — a 2nd click inside that window
+    // spawned a second Claude session.
     if (get().status !== "idle") return;
-
     set({ status: "running", error: null, goal: trimmed, startedAt: Date.now() });
 
     const agent = useAgent.getState();

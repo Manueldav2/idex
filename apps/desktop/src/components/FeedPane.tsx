@@ -16,22 +16,21 @@ export function FeedPane() {
   const state = useFeed((s) => s.state);
   const setState = useFeed((s) => s.setState);
   const refresh = useFeed((s) => s.refresh);
+  const touch = useFeed((s) => s.touch);
   const isLoading = useFeed((s) => s.isLoading);
 
   const [focusedIdx, setFocusedIdx] = useState(0);
   const [activeTab, setActiveTab] = useState<"forYou" | "following">("forYou");
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll while expanded
-  useEffect(() => {
-    if (state !== "expanded") return;
-    const interval = setInterval(() => {
-      setFocusedIdx((i) => (cards.length === 0 ? 0 : (i + 1) % cards.length));
-    }, Math.max(2, config.autoscrollSeconds) * 1000);
-    return () => clearInterval(interval);
-  }, [state, config.autoscrollSeconds, cards.length]);
+  // Auto-scroll is off in expanded — the user should own their scroll
+  // velocity when they're actively reading. We used to cycle the focused
+  // card on a timer here, but that made the surface feel like a moving
+  // sidewalk instead of a real feed. The peek state is ambient enough on
+  // its own (current topic rotating + source indicators pulsing).
 
-  // Snap-scroll when focusedIdx changes
+  // Smooth-scroll only for programmatic focus changes (e.g., user clicks
+  // on a card in the list); natural scrolling is untouched.
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
@@ -54,25 +53,36 @@ export function FeedPane() {
       <aside style={{ width: "40px", flexShrink: 0 }} className="bg-ink-0 border-l border-line flex items-center justify-center">
         <button
           onClick={() => useSettings.getState().patch({ feedEnabled: true })}
-          className="text-text-secondary hover:text-text-primary -rotate-90 origin-center text-[11px] font-mono uppercase tracking-wider whitespace-nowrap"
+          className="text-text-tertiary hover:text-text-primary -rotate-90 origin-center text-[12px] tracking-[-0.005em] whitespace-nowrap transition-colors"
           title="Enable feed"
         >
-          enable feed
+          Enable feed
         </button>
       </aside>
     );
   }
 
-  // Expanded state dominates the screen: cockpit shrinks to a PiP-style
-  // left column while the feed fills the rest. This is the picture-in-
-  // picture moment the product is built around.
-  const targetWidth = state === "expanded" ? "75%" : "72px";
-  const collapsedWidth = "72px";
+  /*
+   * Full-screen takeover layout.
+   *
+   * Peek state  → thin 72px strip docked to the right edge of the
+   *              window, still in the flex row so the cockpit reserves
+   *              the gutter.
+   * Expanded    → the feed OCCUPIES the entire window as a fixed
+   *              overlay. The cockpit keeps running underneath but is
+   *              hidden for the duration. When Claude finishes the
+   *              dwell-guarded collapse in bindToAgent snaps back to
+   *              peek and the terminal is front and center again.
+   */
+  const PEEK_WIDTH = "72px";
+  const isExpanded = state === "expanded";
 
   return (
     <motion.aside
-      initial={{ width: collapsedWidth }}
-      animate={{ width: targetWidth }}
+      initial={false}
+      animate={{
+        opacity: isExpanded ? 1 : 1,
+      }}
       transition={{
         type: "spring",
         stiffness: 220,
@@ -80,19 +90,30 @@ export function FeedPane() {
         mass: 0.85,
       }}
       style={{
-        height: "100%",
-        minWidth: collapsedWidth,
+        minWidth: isExpanded ? "100%" : PEEK_WIDTH,
+        width: isExpanded ? "100%" : PEEK_WIDTH,
+        height: isExpanded ? "100vh" : "100%",
         flexShrink: 0,
         flexGrow: 0,
+        position: isExpanded ? "fixed" : "relative",
+        top: isExpanded ? 0 : undefined,
+        left: isExpanded ? 0 : undefined,
+        right: isExpanded ? 0 : undefined,
+        bottom: isExpanded ? 0 : undefined,
+        zIndex: isExpanded ? 40 : "auto",
       }}
-      className="relative flex flex-col bg-ink-0 overflow-hidden"
+      className="flex flex-col bg-ink-0 overflow-hidden"
+      onPointerDown={touch}
+      onWheel={touch}
     >
-      {/* Left edge divider matches X's 1px line */}
-      <div
-        aria-hidden
-        className="absolute top-0 left-0 bottom-0 w-px"
-        style={{ background: X_DIVIDER }}
-      />
+      {/* Left edge divider matches X's 1px line — only when docked */}
+      {!isExpanded && (
+        <div
+          aria-hidden
+          className="absolute top-0 left-0 bottom-0 w-px"
+          style={{ background: X_DIVIDER }}
+        />
+      )}
 
       {state === "peek" && (
         <PeekStrip
@@ -325,18 +346,27 @@ function EmptyFeedState({ isLoading }: { isLoading: boolean }) {
   );
 }
 
-function PeekStrip({ card, onExpand }: { card?: import("@idex/types").Card; onExpand: () => void }) {
+function PeekStrip({ card: _card, onExpand }: { card?: import("@idex/types").Card; onExpand: () => void }) {
   const topics = useFeed((s) => s.topics);
   const isLoading = useFeed((s) => s.isLoading);
-  // Primary label is the top topic the curator is reading right now.
-  // Falls back to the focused card's relevance reason, then to a soft
-  // default so the strip is never empty.
-  const primary = topics[0] ?? card?.relevanceReason?.split(/[.·—]/)[0]?.trim() ?? "feed";
-  const secondary = topics[1] ?? null;
+
+  // Only show a label when we have a real extracted topic from the user's
+  // prompt. If topics is empty we fall back to NOTHING — the old fallback
+  // chain was pulling a card's full `relevanceReason` sentence like
+  // "Hacker News match for typescript" and rotating it vertically, which
+  // spilled down the whole right edge of the screen. Clean silence is
+  // better than a sentence crammed into a 72px column.
+  const rawPrimary = topics[0];
+  const rawSecondary = topics[1];
+  // Hard cap each word to 14 chars so nothing can blow out the column
+  // vertically. Drop any topic that's pure noise (too short or all digits).
+  const primary = rawPrimary && rawPrimary.length <= 18 ? rawPrimary : null;
+  const secondary = rawSecondary && rawSecondary.length <= 14 ? rawSecondary : null;
+
   return (
     <button
       onClick={onExpand}
-      className="w-full h-full flex flex-col items-center justify-center gap-4 group hover:bg-ink-1/60 transition-colors"
+      className="w-full h-full flex flex-col items-center justify-between py-5 group hover:bg-ink-1/60 transition-colors overflow-hidden"
       title={topics.length > 0 ? `Reading about: ${topics.slice(0, 3).join(", ")}` : "Open feed"}
     >
       {/* Real X logo — monospace glyph drawn as an SVG so it stays crisp
@@ -356,14 +386,19 @@ function PeekStrip({ card, onExpand }: { card?: import("@idex/types").Card; onEx
         </svg>
       </div>
 
-      {/* Current topic, vertically rotated so it fits the thin column
-          without truncating awkwardly. */}
+      {/* Current topic, vertically rotated so it fits the thin column.
+          Constrained to the middle 55% of the available height so it can
+          never climb past the logo or crash into the bottom indicator. */}
       {primary && (
         <div
-          className="flex-1 max-h-[40vh] flex items-center justify-center"
-          style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+          className="flex items-center justify-center px-1 min-h-0 overflow-hidden"
+          style={{
+            writingMode: "vertical-rl",
+            transform: "rotate(180deg)",
+            maxHeight: "55%",
+          }}
         >
-          <span className="text-[11px] font-mono text-text-secondary group-hover:text-text-primary transition-colors tracking-wide whitespace-nowrap">
+          <span className="text-[11px] font-mono text-text-secondary group-hover:text-text-primary transition-colors tracking-wide whitespace-nowrap truncate">
             {primary}
             {secondary && <span className="text-text-tertiary mx-2">·</span>}
             {secondary && <span className="text-text-tertiary">{secondary}</span>}
@@ -371,10 +406,21 @@ function PeekStrip({ card, onExpand }: { card?: import("@idex/types").Card; onEx
         </div>
       )}
 
-      {/* Tiny count indicator at the bottom */}
-      <span className="text-[10px] font-mono text-text-tertiary">
-        {card ? "feed" : "·"}
-      </span>
+      {/* Bottom state glyph — three soft-pulsing dots while curating, a
+          single tiny accent dot while idle. Replaces the old literal
+          "feed" word which felt redundant next to the X logo at the top
+          and looked like leftover debug copy. */}
+      <div className="flex items-center gap-1">
+        {isLoading ? (
+          <>
+            <span className="dot-soft-pulse size-1 rounded-full bg-accent" style={{ animationDelay: "0ms" }} />
+            <span className="dot-soft-pulse size-1 rounded-full bg-accent" style={{ animationDelay: "180ms" }} />
+            <span className="dot-soft-pulse size-1 rounded-full bg-accent" style={{ animationDelay: "360ms" }} />
+          </>
+        ) : (
+          <span className="size-1 rounded-full bg-text-tertiary/60" />
+        )}
+      </div>
     </button>
   );
 }

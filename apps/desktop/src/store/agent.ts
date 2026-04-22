@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { AgentId, AgentState, ContextEvent, Session } from "@idex/types";
 import { ipc } from "@/lib/ipc";
 import { useFeed } from "./feed";
+import { useSettings } from "./settings";
 
 export interface SessionData {
   session: Session;
@@ -62,6 +63,17 @@ export const useAgent = create<AgentStore>((set, get) => ({
               { kind: "agent_done" as const, text: lastChunk.text, ts: Date.now() },
             ];
           }
+          // Clear any stale error from a previous turn once the agent
+          // completes cleanly — don't leave a red banner hanging around
+          // after the next prompt succeeds.
+          updated.lastError = null;
+        } else if (event.state === "error") {
+          // Surface session-level failures in the UI. Without this the
+          // cockpit banner only reacts to spawn-time errors (globalError)
+          // and a mid-session PTY death disappears silently.
+          updated.lastError =
+            existing.lastError ??
+            `${existing.session.agentId} session stopped unexpectedly.`;
         }
         return { sessions: { ...s.sessions, [event.sessionId]: updated } };
       });
@@ -91,7 +103,13 @@ export const useAgent = create<AgentStore>((set, get) => ({
 
   async createSession(opts = {}) {
     const agentId: AgentId = opts.agentId ?? "claude-code";
-    const cwd = opts.cwd ?? "";
+    // Default the spawn directory to whatever workspace the user has
+    // currently open. Without this, every new session was rooting Claude
+    // in $HOME — so "⌘T to start working on this project" opened the
+    // agent nowhere near the files. Falling back to empty string lets
+    // the main process decide (its default is $HOME, reasonable for
+    // "I have no workspace open" first-launch).
+    const cwd = opts.cwd ?? useSettings.getState().config.workspacePath ?? "";
     const r = await ipc().agent.spawn({ agentId, cwd });
     if (!r.ok || !r.session) {
       // Surface the failure so Cockpit can render a proper banner instead
@@ -149,6 +167,9 @@ export const useAgent = create<AgentStore>((set, get) => ({
         },
       };
     });
+    // Core IDEX loop: every send hands the screen to the curated feed.
+    // Agent finishing flips it back via the dwell-guarded collapse in
+    // feed.bindToAgent.
     useFeed.getState().setState("expanded");
     useFeed.getState().refresh(active);
     await ipc().agent.input({ sessionId: active, text: `${t}\r` });

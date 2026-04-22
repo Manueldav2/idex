@@ -18,6 +18,8 @@
   "scripts": {
     "build": "pnpm -r --filter './packages/*' build && pnpm -r --filter './apps/*' build",
     "dev:desktop": "pnpm --filter @idex/desktop dev",
+    "dev:tauri": "pnpm --filter @idex/desktop tauri:dev",
+    "build:tauri": "pnpm -r --filter './packages/*' build && pnpm --filter @idex/desktop tauri:build",
     "dev:landing": "pnpm --filter @idex/landing dev",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",

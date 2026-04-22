@@ -26,13 +26,13 @@ export function EditorTabs() {
             onClick={() => setActive(f.path)}
             title={f.path}
             className={cn(
-              "group relative flex items-center gap-2 px-3 py-1.5 text-[12px] font-mono cursor-pointer shrink-0 border-r border-line transition-colors",
+              "group relative flex items-center gap-2 px-3 py-1.5 text-[12.5px] cursor-pointer shrink-0 transition-colors",
               active
                 ? "bg-ink-0 text-text-primary"
                 : "text-text-secondary hover:text-text-primary hover:bg-ink-2/60",
             )}
           >
-            <span className="truncate max-w-[200px]">{basename(f.path)}</span>
+            <span className="truncate max-w-[200px] tracking-[-0.005em]">{basename(f.path)}</span>
             {f.dirty ? (
               <span
                 className="size-1.5 rounded-full bg-accent shrink-0"

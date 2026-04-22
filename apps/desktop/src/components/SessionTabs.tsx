@@ -25,14 +25,20 @@ export function SessionTabs() {
   const createSession = useAgent((s) => s.createSession);
   const closeSession = useAgent((s) => s.closeSession);
 
+  // Agent-mode tabs never include raw shell sessions — those live in the
+  // integrated terminal panel inside editor mode. Filtering here keeps
+  // the top tab strip focused on "what AI am I talking to" rather than
+  // mixing AI and shell contexts.
+  const agentOrder = order.filter((id) => sessions[id]?.session.agentId !== "shell");
+
   const onNew = async () => {
     const agentId: AgentId = "claude-code";
     await createSession({ agentId });
   };
 
   return (
-    <div className="glass draggable flex items-center gap-1 border-b border-line pl-24 pr-2 h-11 shrink-0 overflow-x-auto no-drag-children">
-      {order.map((id, idx) => {
+    <div className="draggable flex items-center gap-0.5 border-b border-line bg-ink-1/80 pl-24 pr-2 h-10 shrink-0 overflow-x-auto no-drag-children">
+      {agentOrder.map((id, idx) => {
         const sd = sessions[id];
         if (!sd) return null;
         const active = id === activeId;
@@ -40,21 +46,23 @@ export function SessionTabs() {
           <div
             key={id}
             onClick={() => setActive(id)}
-            className={`no-drag group relative flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] font-mono cursor-pointer transition-colors shrink-0 ${
+            className={`no-drag group relative flex items-center gap-2 px-2.5 py-1 rounded-md text-[12.5px] cursor-pointer transition-colors shrink-0 tracking-[-0.005em] ${
               active
-                ? "bg-ink-2 text-text-primary border border-line"
-                : "text-text-secondary hover:text-text-primary hover:bg-ink-2/50 border border-transparent"
+                ? "bg-ink-2 text-text-primary"
+                : "text-text-secondary hover:text-text-primary hover:bg-ink-2/60"
             }`}
           >
-            <span className={`size-1.5 rounded-full ${dotClass(sd.session.state)}`} />
+            <span className={`size-[5px] rounded-full ${dotClass(sd.session.state)}`} />
             <span className="max-w-[240px] truncate">{sd.session.label}</span>
-            <span className="text-text-secondary/60 text-[10px]">#{idx + 1}</span>
+            <span className="text-text-tertiary/80 text-[10.5px] font-mono tabular-nums">
+              {idx + 1}
+            </span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 void closeSession(id);
               }}
-              className="tt opacity-0 group-hover:opacity-100 hover:bg-ink-1 rounded p-0.5 transition-opacity"
+              className="tt opacity-0 group-hover:opacity-100 hover:bg-ink-0 rounded p-0.5 transition-opacity"
               data-tooltip="close (⌘W)"
               data-tooltip-pos="bottom"
               aria-label="Close session"
@@ -66,16 +74,16 @@ export function SessionTabs() {
       })}
       <button
         onClick={() => void onNew()}
-        className="tt no-drag press-feedback shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[12px] font-mono text-text-secondary hover:text-accent hover:bg-accent-soft transition-colors"
+        className="tt no-drag press-feedback shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[13px] text-text-tertiary hover:text-accent hover:bg-accent-soft transition-colors"
         data-tooltip="new session (⌘T)"
         data-tooltip-pos="bottom"
         aria-label="New Claude Code session"
       >
-        <Plus className="size-3.5" /> new
+        <Plus className="size-3.5" />
       </button>
-      {order.length === 0 && (
-        <span className="text-[11px] text-text-secondary font-mono ml-2">
-          click <span className="text-accent">+ new</span> or press ⌘T to start
+      {agentOrder.length === 0 && (
+        <span className="text-[12px] text-text-secondary ml-2">
+          Press <kbd className="px-1 py-0.5 rounded border border-line text-[10.5px] font-mono">⌘T</kbd> to start a session
         </span>
       )}
       <ShortcutHint />
@@ -126,21 +134,19 @@ function ShortcutHint() {
           transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
           className="no-drag fixed bottom-6 right-6 z-50 pointer-events-none"
         >
-          <div className="rounded-lg border border-line bg-ink-1/95 backdrop-blur-md px-3.5 py-2.5 text-[11px] font-mono text-text-secondary leading-relaxed shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
-            <span className="text-text-primary">
-              <kbd className="px-1 py-0.5 rounded border border-line">⌘T</kbd>
+          <div className="rounded-lg border border-line bg-ink-1/95 backdrop-blur-md px-3.5 py-2.5 text-[12px] text-text-secondary leading-relaxed shadow-[0_8px_24px_rgba(0,0,0,0.35)] tracking-[-0.005em]">
+            <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px] text-text-primary">⌘T</kbd>
+            <span className="mx-2">New session</span>
+            <span className="text-text-tertiary/60">·</span>
+            <span className="mx-2">
+              <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px] text-text-primary">⌘K</kbd>{" "}
+              Commands
             </span>
-            <span className="mx-1.5">for a new session</span>
-            <span className="opacity-50">·</span>
-            <span className="mx-1.5">
-              <kbd className="px-1 py-0.5 rounded border border-line text-text-primary">⌘K</kbd> for commands
+            <span className="text-text-tertiary/60">·</span>
+            <span className="ml-2">
+              <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px] text-text-primary">⌘E</kbd>{" "}
+              Editor
             </span>
-            <span className="opacity-50 text-[10px]">(soon)</span>
-            <span className="opacity-50 mx-1.5">·</span>
-            <span>
-              <kbd className="px-1 py-0.5 rounded border border-line text-text-primary">⌘E</kbd> for editor mode
-            </span>
-            <span className="opacity-50 text-[10px]"> (soon)</span>
           </div>
         </motion.div>
       )}

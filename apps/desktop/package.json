@@ -11,11 +11,16 @@
     "build:mac": "pnpm build && electron-builder --mac --publish never",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
-    "lint": "eslint . --ext .ts,.tsx --max-warnings 0 || true"
+    "lint": "eslint . --ext .ts,.tsx --max-warnings 0 || true",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
+    "@tauri-apps/api": "^2.1.1",
     "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-webgl": "^0.18.0",
     "@xterm/xterm": "^5.5.0",
     "framer-motion": "^11.15.0",
     "keytar": "^7.9.0",
@@ -32,6 +37,7 @@
     "@idex/types": "workspace:*",
     "@tailwindcss/postcss": "^4.0.0",
     "@tailwindcss/vite": "^4.0.0",
+    "@tauri-apps/cli": "^2.1.0",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",

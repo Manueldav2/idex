@@ -8,6 +8,7 @@ import {
   type AgentInput,
   type AgentResize,
   type AppConfig,
+  type ExternalAgentLaunchOptions,
   type KeychainKey,
   type ProjectCreateFolderArgs,
   type ProjectCreateFolderResult,
@@ -16,6 +17,7 @@ import { agentHost } from "./agent-host.js";
 import { configStore } from "./config-store.js";
 import { keychain } from "./keychain.js";
 import { workspace } from "./workspace.js";
+import { launchExternalAgent } from "./external-agent.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !!process.env["VITE_DEV_SERVER_URL"];
@@ -83,6 +85,10 @@ function registerIpc() {
   });
   ipcMain.handle(IPC.AGENT_KILL, async (_, sessionId: string) => agentHost.kill(sessionId));
   ipcMain.handle(IPC.SESSION_LIST, async () => agentHost.list());
+
+  ipcMain.handle(IPC.AGENT_LAUNCH_EXTERNAL, async (_, opts: ExternalAgentLaunchOptions) =>
+    launchExternalAgent(opts),
+  );
 
   ipcMain.handle(IPC.OPEN_EXTERNAL, async (_, url: string) => {
     if (!url || typeof url !== "string") return false;

@@ -5,6 +5,8 @@ import type {
   AgentOutputChunk,
   AgentStateEvent,
   AppConfig,
+  ExternalAgentLaunchOptions,
+  ExternalAgentLaunchResult,
   FileNode,
   KeychainKey,
   ProjectCreateFolderArgs,
@@ -34,6 +36,7 @@ declare global {
         list: () => Promise<Session[]>;
         onOutput: (cb: (chunk: AgentOutputChunk) => void) => () => void;
         onState: (cb: (event: AgentStateEvent) => void) => () => void;
+        launchExternal: (opts: ExternalAgentLaunchOptions) => Promise<ExternalAgentLaunchResult>;
       };
       openExternal: (url: string) => Promise<boolean>;
       workspace: {

@@ -194,6 +194,20 @@ function PrivacyPane({ onAccept }: { onAccept: () => void }) {
   const openExternal = (url: string) => () => {
     void window.idex.openExternal(url);
   };
+  const { config, patch } = useSettings();
+  const [token, setToken] = useState(config.xBearerToken ?? "");
+  const [orKey, setOrKey] = useState("");
+  // Hydrate OpenRouter key from the OS keychain once. It's stored out
+  // of process so we can't read it synchronously.
+  useEffect(() => {
+    let live = true;
+    void window.idex.keychain.get("openrouter-api-key").then((v) => {
+      if (live && typeof v === "string") setOrKey(v);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
   return (
     <div className="space-y-6">
       <div>
@@ -247,6 +261,76 @@ function PrivacyPane({ onAccept }: { onAccept: () => void }) {
           Read the privacy policy <ExternalLink className="size-3" />
         </button>
       </p>
+      {/*
+        X (Twitter) API bearer token. Optional. When present, the
+        curator calls api.x.com/2/tweets/search/recent in parallel with
+        HN / Reddit / Bluesky so the feed can surface real tweets.
+        Without it we silently skip X and the feed still works with the
+        other three sources.
+      */}
+      <div className="space-y-2">
+        <label className="text-[13px] font-medium text-text-primary tracking-[-0.005em]">
+          X (Twitter) API Bearer Token{" "}
+          <span className="text-text-tertiary font-normal">— optional</span>
+        </label>
+        <input
+          type="password"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          onBlur={() => {
+            void patch({ xBearerToken: token.trim() ? token.trim() : null });
+          }}
+          placeholder="Paste your X API v2 bearer token"
+          className="w-full rounded-lg bg-ink-2 border border-line px-3 py-2 text-[13px] text-text-primary placeholder:text-text-tertiary/70 font-mono focus:outline-none focus:border-accent/60 transition-colors"
+        />
+        <p className="text-[11.5px] text-text-tertiary leading-relaxed">
+          Without this the feed pulls from HN, Reddit, and Bluesky. Add a
+          token from{" "}
+          <button
+            className="text-accent underline-offset-2 hover:underline"
+            onClick={openExternal("https://developer.x.com/en/portal/dashboard")}
+          >
+            developer.x.com
+          </button>{" "}
+          to surface real X posts.
+        </p>
+      </div>
+
+      {/*
+        OpenRouter API key. With this, an LLM reads the conversation
+        and writes the feed queries — drastically better relevance than
+        the naive token extractor. Stored in the OS keychain, never in
+        plaintext config.
+      */}
+      <div className="space-y-2">
+        <label className="text-[13px] font-medium text-text-primary tracking-[-0.005em]">
+          OpenRouter API Key{" "}
+          <span className="text-text-tertiary font-normal">— optional</span>
+        </label>
+        <input
+          type="password"
+          value={orKey}
+          onChange={(e) => setOrKey(e.target.value)}
+          onBlur={() => {
+            void window.idex.keychain.set("openrouter-api-key", orKey.trim());
+          }}
+          placeholder="sk-or-v1-..."
+          className="w-full rounded-lg bg-ink-2 border border-line px-3 py-2 text-[13px] text-text-primary placeholder:text-text-tertiary/70 font-mono focus:outline-none focus:border-accent/60 transition-colors"
+        />
+        <p className="text-[11.5px] text-text-tertiary leading-relaxed">
+          With this set, an agent reads your conversation and plans the
+          feed queries instead of the naive keyword extractor. Get a key
+          at{" "}
+          <button
+            className="text-accent underline-offset-2 hover:underline"
+            onClick={openExternal("https://openrouter.ai/keys")}
+          >
+            openrouter.ai/keys
+          </button>
+          . Uses Gemini Flash (~$0.001 per feed refresh).
+        </p>
+      </div>
+
       <div className="flex items-center justify-end">
         <Button size="lg" onClick={onAccept}>
           I understand — get me to the cockpit

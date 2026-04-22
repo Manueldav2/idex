@@ -7,6 +7,8 @@ import type {
   AgentOutputChunk,
   AgentStateEvent,
   AppConfig,
+  ExternalAgentLaunchOptions,
+  ExternalAgentLaunchResult,
   FileNode,
   KeychainKey,
   ProjectCreateFolderArgs,
@@ -43,6 +45,8 @@ const api = {
       ipcRenderer.on(IPC.AGENT_STATE, handler);
       return () => ipcRenderer.off(IPC.AGENT_STATE, handler);
     },
+    launchExternal: (opts: ExternalAgentLaunchOptions): Promise<ExternalAgentLaunchResult> =>
+      ipcRenderer.invoke(IPC.AGENT_LAUNCH_EXTERNAL, opts),
   },
   openExternal: (url: string): Promise<boolean> => ipcRenderer.invoke(IPC.OPEN_EXTERNAL, url),
   workspace: {

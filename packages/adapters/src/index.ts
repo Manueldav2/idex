@@ -2,11 +2,13 @@ import type { AgentAdapter, AgentId } from "@idex/types";
 import { claudeCodeAdapter } from "./claude-code.js";
 import { codexAdapter } from "./codex.js";
 import { freebuffAdapter } from "./freebuff.js";
+import { shellAdapter } from "./shell.js";
 
 const ADAPTERS: Record<AgentId, AgentAdapter> = {
   "claude-code": claudeCodeAdapter,
   codex: codexAdapter,
   freebuff: freebuffAdapter,
+  shell: shellAdapter,
 };
 
 export function getAdapter(id: AgentId): AgentAdapter {
@@ -21,5 +23,5 @@ export function listAdapters(): AgentAdapter[] {
   return Object.values(ADAPTERS);
 }
 
-export { claudeCodeAdapter, codexAdapter, freebuffAdapter };
+export { claudeCodeAdapter, codexAdapter, freebuffAdapter, shellAdapter };
 export { stripAnsi } from "./strip-ansi.js";

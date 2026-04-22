@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { FolderPlus, PanelLeftClose, PanelLeftOpen, Folder } from "lucide-react";
+import { FolderPlus, PanelLeftClose, PanelLeftOpen, Folder, File as FileIcon, X, ChevronDown, ChevronRight } from "lucide-react";
 import { FileTree } from "./editor/FileTree";
 import { useWorkspace } from "@/store/workspace";
 import { useSettings } from "@/store/settings";
 import type { CockpitMode } from "@idex/types";
+import { cn } from "@/lib/cn";
 
 /**
  * The always-on left dock. Collapsible Cursor-style: click the chevron
@@ -63,24 +64,23 @@ export function Sidebar({ mode }: Props) {
     >
       {/* Header row with the current workspace label + collapse toggle */}
       <div
-        className="flex items-center justify-between gap-1 px-2.5 h-9 border-b border-line"
-        style={{ minHeight: "36px" }}
+        className="flex items-center justify-between gap-1.5 px-3 h-10 border-b border-line"
       >
         {!collapsed && (
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            <Folder className="size-3.5 text-text-secondary shrink-0" />
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Folder className="size-3.5 text-text-tertiary shrink-0" />
             <span
-              className="text-[11px] font-mono text-text-secondary truncate"
+              className="text-[12.5px] text-text-secondary truncate tracking-[-0.005em]"
               title={workspacePath ?? "no workspace"}
             >
-              {folderLabel ?? "workspace"}
+              {folderLabel ?? "Workspace"}
             </span>
           </div>
         )}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="tt press-feedback p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-ink-2 transition-colors shrink-0"
-          data-tooltip={collapsed ? "expand sidebar (⌘B)" : "collapse sidebar (⌘B)"}
+          className="tt press-feedback p-1 rounded-md text-text-tertiary hover:text-text-primary hover:bg-ink-2 transition-colors shrink-0"
+          data-tooltip={collapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
           data-tooltip-pos="bottom"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -94,7 +94,8 @@ export function Sidebar({ mode }: Props) {
           onOpen={() => void openWorkspace()}
         />
       ) : tree ? (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto flex flex-col">
+          <OpenEditorsSection />
           <FileTree tree={tree} />
         </div>
       ) : (
@@ -102,6 +103,97 @@ export function Sidebar({ mode }: Props) {
       )}
     </aside>
   );
+}
+
+/**
+ * Cursor-style "Open editors" pane at the top of the sidebar. Lists every
+ * buffer the user has open and lets them close files without jumping up
+ * to the editor tab bar. Collapsible; hidden entirely when nothing is
+ * open so we don't waste vertical space on an empty section.
+ */
+function OpenEditorsSection() {
+  const openFiles = useWorkspace((s) => s.openFiles);
+  const activePath = useWorkspace((s) => s.activePath);
+  const setActive = useWorkspace((s) => s.setActive);
+  const closeFile = useWorkspace((s) => s.closeFile);
+  const patchConfig = useSettings((s) => s.patch);
+  const [expanded, setExpanded] = useState(true);
+
+  if (openFiles.length === 0) return null;
+
+  return (
+    <div className="border-b border-line shrink-0">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center gap-1.5 px-3 h-7 text-[11px] text-text-tertiary hover:text-text-secondary transition-colors tracking-[-0.005em]"
+      >
+        {expanded ? (
+          <ChevronDown className="size-3 shrink-0" />
+        ) : (
+          <ChevronRight className="size-3 shrink-0" />
+        )}
+        <span className="font-medium">Open editors</span>
+        <span className="ml-1 text-text-tertiary/70 tabular-nums font-mono text-[10.5px]">
+          {openFiles.length}
+        </span>
+      </button>
+      {expanded && (
+        <ul className="pb-1">
+          {openFiles.map((f) => {
+            const active = f.path === activePath;
+            const name = basename(f.path);
+            return (
+              <li key={f.path} className="group relative">
+                <button
+                  onClick={() => {
+                    setActive(f.path);
+                    // Snap into editor mode so clicking here from agent
+                    // mode actually takes you to the file.
+                    void patchConfig({ mode: "editor" });
+                  }}
+                  title={f.path}
+                  className={cn(
+                    "w-full flex items-center gap-1.5 pl-6 pr-8 py-0.5 text-left text-[12.5px] transition-colors tracking-[-0.005em]",
+                    active
+                      ? "bg-accent-soft text-accent"
+                      : "text-text-secondary hover:text-text-primary hover:bg-ink-2/60",
+                  )}
+                >
+                  {f.dirty ? (
+                    <span
+                      className="size-1.5 rounded-full bg-accent shrink-0"
+                      title="Unsaved changes"
+                      aria-label="Unsaved changes"
+                    />
+                  ) : (
+                    <FileIcon className="size-3 shrink-0 text-text-tertiary" />
+                  )}
+                  <span className="truncate">{name}</span>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeFile(f.path);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-ink-0 transition-opacity"
+                  title="Close file"
+                  aria-label={`Close ${name}`}
+                >
+                  <X className="size-3 text-text-tertiary hover:text-text-primary" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function basename(p: string): string {
+  const norm = p.replace(/\\+/g, "/");
+  const parts = norm.split("/").filter(Boolean);
+  return parts[parts.length - 1] ?? p;
 }
 
 /** 44px-wide rail shown when the sidebar is collapsed. One icon button. */
@@ -131,18 +223,15 @@ function CollapsedRail({
 
 function EmptySidebar({ onOpenFolder }: { onOpenFolder: () => void }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-      <span className="text-[10px] uppercase tracking-[0.24em] font-mono text-text-secondary">
-        workspace
-      </span>
-      <p className="text-[11px] text-text-secondary font-mono leading-relaxed max-w-[170px]">
-        no folder open yet.
+    <div className="flex h-full flex-col items-center justify-center gap-4 px-5 text-center">
+      <p className="text-[13px] text-text-secondary leading-relaxed max-w-[180px] tracking-[-0.005em]">
+        No folder open yet. Open one to start editing.
       </p>
       <button
         onClick={onOpenFolder}
-        className="press-feedback inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-mono text-text-primary bg-ink-2 border border-line hover:border-accent hover:text-accent transition-colors"
+        className="press-feedback inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] text-text-primary bg-ink-2 hover:bg-ink-2/70 border border-line hover:border-line-soft transition-colors"
       >
-        <FolderPlus className="size-3.5" /> open folder
+        <FolderPlus className="size-3.5" /> Open folder
       </button>
     </div>
   );

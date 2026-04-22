@@ -17,7 +17,13 @@ import { stripAnsi } from "./strip-ansi.js";
  * revisions; we conservatively match a couple of strong signals and rely
  * on the idle fallback for everything else.
  */
-const PROMPT_LINE_RE = /^>\s*$/m;
+/**
+ * Claude Code v2.x renders its input prompt as `›` (U+203A), usually on its
+ * own line with nothing but optional whitespace after it. The older `>`
+ * fallback stays in case the TUI changes again. We also allow for the box
+ * chars the prompt is sometimes framed with.
+ */
+const PROMPT_LINE_RE = /^\s*[›>](\s*|$)/m;
 const ALT_PROMPT_HINT = /Press\s+Esc\s+to\s+interrupt/i;
 const ASSISTANT_BANNER_RE = /(╭|━){4,}/;
 
@@ -47,7 +53,15 @@ export const claudeCodeAdapter: AgentAdapter = {
   },
 
   getCommand() {
-    return { cmd: "claude", args: [] };
+    // --dangerously-skip-permissions: kill the "Do you want to
+    // proceed? Yes/No" prompts that break the feed/terminal flow. The
+    // user is already running IDEX in their own workspace, which they
+    // picked, and IDEX's whole model is "the agent does the work,
+    // you read the feed" — stopping to confirm every bash command
+    // shatters that loop. Paired with the filesystem sandboxing most
+    // projects already have (git, devcontainer, etc.), this is the
+    // right default for an IDE built around a coding agent.
+    return { cmd: "claude", args: ["--dangerously-skip-permissions"] };
   },
 };
 

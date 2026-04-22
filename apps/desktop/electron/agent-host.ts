@@ -25,7 +25,15 @@ interface ActiveSession {
   state: AgentState;
 }
 
-const IDLE_BOUNDARY_MS = 350;
+/**
+ * Idle fallback before we declare the agent "done". Claude Code's TUI
+ * paints a spinner frame every ~100ms while working — that's continuous
+ * output. The old 350ms was too tight: the spinner kept resetting the
+ * timer and the feed never got a chance to collapse. 2s gives us a
+ * confident "yes, the agent has actually stopped producing content" and
+ * still feels snappy for short answers.
+ */
+const IDLE_BOUNDARY_MS = 2000;
 
 interface HostCallbacks {
   onOutput: (chunk: AgentOutputChunk) => void;

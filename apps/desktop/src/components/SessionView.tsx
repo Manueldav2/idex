@@ -192,6 +192,17 @@ export function SessionView({ data, active }: Props) {
     //   Cmd/Ctrl+-        — shrink font size
     // Shortcuts that should bubble to the browser (not reach the PTY):
     //   any Cmd/Ctrl-combo that isn't a terminal control sequence.
+    // Each handled combo swallows the event — preventDefault + stopPropagation
+    // stop the browser's paste event from firing (avoiding double-paste) and
+    // keep the global command palette / mode-toggle listeners from also
+    // reacting to the same keystroke.
+    const swallow = (ev: KeyboardEvent) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (typeof ev.stopImmediatePropagation === "function") {
+        ev.stopImmediatePropagation();
+      }
+    };
     term.attachCustomKeyEventHandler((ev) => {
       if (ev.type !== "keydown") return true;
       const mod = ev.metaKey || ev.ctrlKey;
@@ -205,6 +216,7 @@ export function SessionView({ data, active }: Props) {
         const sel = term.getSelection();
         if (sel) {
           void navigator.clipboard.writeText(sel).catch(() => { /* ignore */ });
+          swallow(ev);
           return false;
         }
         return true;
@@ -213,25 +225,30 @@ export function SessionView({ data, active }: Props) {
         void navigator.clipboard.readText().then((text) => {
           if (text) void ipc().agent.input({ sessionId, text });
         }).catch(() => { /* ignore */ });
+        swallow(ev);
         return false;
       }
       if (mod && (ev.key === "k" || ev.key === "K") && !hasShift) {
         term.clear();
+        swallow(ev);
         return false;
       }
       if (mod && (ev.key === "=" || ev.key === "+")) {
         term.options.fontSize = Math.min((term.options.fontSize ?? 13) + 1, 22);
         scheduleResize();
+        swallow(ev);
         return false;
       }
       if (mod && ev.key === "-") {
         term.options.fontSize = Math.max((term.options.fontSize ?? 13) - 1, 9);
         scheduleResize();
+        swallow(ev);
         return false;
       }
       if (mod && (ev.key === "0")) {
         term.options.fontSize = 13;
         scheduleResize();
+        swallow(ev);
         return false;
       }
 

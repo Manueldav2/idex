@@ -17,20 +17,17 @@ export function FileTree({ tree }: Props) {
   if (!tree) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-        <span className="text-[10px] uppercase tracking-[0.24em] font-mono text-text-secondary">
-          editor
-        </span>
-        <p className="text-[12px] text-text-secondary font-mono leading-relaxed">
-          open a folder to start editing
+        <p className="text-[13px] text-text-secondary leading-relaxed tracking-[-0.005em]">
+          Open a folder to start editing.
         </p>
         <button
           onClick={() => void openWorkspace()}
-          className="press-feedback inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-mono text-text-primary bg-ink-2 border border-line hover:border-accent hover:text-accent transition-colors"
+          className="press-feedback inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12.5px] text-text-primary bg-ink-2 border border-line hover:border-line-soft transition-colors"
         >
-          <FolderPlus className="size-3.5" /> open folder
+          <FolderPlus className="size-3.5" /> Open folder
         </button>
         {treeError && (
-          <span className="text-[11px] text-error font-mono max-w-[200px] truncate" title={treeError}>
+          <span className="text-[11.5px] text-error max-w-[200px] truncate" title={treeError}>
             {treeError}
           </span>
         )}
@@ -42,7 +39,7 @@ export function FileTree({ tree }: Props) {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-line shrink-0">
         <span
-          className="text-[11px] font-mono text-text-primary truncate"
+          className="text-[12.5px] text-text-primary truncate tracking-[-0.005em]"
           title={tree.path}
         >
           {tree.name}

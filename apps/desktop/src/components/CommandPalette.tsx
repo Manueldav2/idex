@@ -9,11 +9,13 @@ import {
   Search,
   Settings as SettingsIcon,
   SplitSquareVertical,
+  TerminalSquare,
 } from "lucide-react";
 import { useProjects } from "@/store/projects";
 import { useWorkspace } from "@/store/workspace";
 import { useSettings } from "@/store/settings";
 import { useAgent } from "@/store/agent";
+import { useEditorUI } from "@/store/editor-ui";
 import type { CockpitMode } from "@idex/types";
 import { cn } from "@/lib/cn";
 
@@ -109,6 +111,21 @@ export function CommandPalette({ open, onClose, onOpenSettings }: Props) {
         // mode and handles goal capture.
         const next: CockpitMode = mode === "autopilot" ? "agent" : "autopilot";
         void patchConfig({ mode: next });
+      },
+    });
+
+    out.push({
+      id: "action:terminal",
+      label: "Toggle terminal",
+      sub: "Open the integrated shell panel",
+      hint: "⌘`",
+      section: "action",
+      icon: <TerminalSquare className="size-4" />,
+      run: () => {
+        useEditorUI.getState().toggleTerminal();
+        if (useEditorUI.getState().terminalOpen && mode !== "editor") {
+          void patchConfig({ mode: "editor" });
+        }
       },
     });
 
@@ -225,8 +242,8 @@ export function CommandPalette({ open, onClose, onOpenSettings }: Props) {
             transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
             className="w-full max-w-[640px] overflow-hidden rounded-xl border border-line bg-ink-1 shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
           >
-            <div className="flex items-center gap-2 border-b border-line px-3 py-2">
-              <Search className="size-4 text-text-secondary shrink-0" />
+            <div className="flex items-center gap-2.5 border-b border-line px-3.5 py-2.5">
+              <Search className="size-4 text-text-tertiary shrink-0" />
               <input
                 ref={inputRef}
                 value={query}
@@ -235,11 +252,11 @@ export function CommandPalette({ open, onClose, onOpenSettings }: Props) {
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="off"
-                className="flex-1 bg-transparent text-[14px] text-text-primary placeholder:text-text-secondary/50 outline-none border-0 py-1 font-body"
+                className="flex-1 bg-transparent text-[14.5px] text-text-primary placeholder:text-text-tertiary/70 outline-none border-0 py-1 tracking-[-0.005em]"
               />
-              <span className="text-[10px] font-mono text-text-secondary/60 shrink-0">
-                <kbd className="px-1 py-0.5 rounded border border-line">esc</kbd>
-              </span>
+              <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px] text-text-tertiary shrink-0">
+                esc
+              </kbd>
             </div>
 
             <ul
@@ -249,7 +266,7 @@ export function CommandPalette({ open, onClose, onOpenSettings }: Props) {
               className="max-h-[420px] overflow-y-auto py-1"
             >
               {filtered.length === 0 ? (
-                <li className="px-4 py-6 text-center text-[12px] font-mono text-text-secondary">
+                <li className="px-4 py-8 text-center text-[13px] text-text-tertiary tracking-[-0.005em]">
                   No matches.
                 </li>
               ) : (
@@ -278,18 +295,29 @@ export function CommandPalette({ open, onClose, onOpenSettings }: Props) {
                         </span>
                         <span className="flex-1 min-w-0">
                           <span className="flex items-center gap-2">
-                            <span className="text-[13px] font-medium truncate">{it.label}</span>
+                            <span className="text-[13.5px] font-medium truncate tracking-[-0.005em]">
+                              {it.label}
+                            </span>
                             <SectionTag section={it.section} />
                           </span>
                           {it.sub && (
-                            <span className="block text-[11px] font-mono text-text-secondary truncate">
+                            <span
+                              className={cn(
+                                "block text-[11.5px] text-text-tertiary truncate",
+                                it.section === "action"
+                                  ? "tracking-[-0.005em]"
+                                  : "font-mono",
+                              )}
+                            >
                               {it.sub}
                             </span>
                           )}
                         </span>
-                        <span className="flex items-center gap-2 shrink-0 text-[10px] font-mono text-text-secondary">
+                        <span className="flex items-center gap-2 shrink-0">
                           {it.hint && (
-                            <kbd className="px-1.5 py-0.5 rounded border border-line">{it.hint}</kbd>
+                            <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px] text-text-tertiary">
+                              {it.hint}
+                            </kbd>
                           )}
                           {active && <ArrowRight className="size-3 text-accent" />}
                         </span>
@@ -300,17 +328,20 @@ export function CommandPalette({ open, onClose, onOpenSettings }: Props) {
               )}
             </ul>
 
-            <div className="flex items-center justify-between gap-3 border-t border-line bg-ink-2/60 px-3 py-1.5 text-[10px] font-mono text-text-secondary">
-              <div className="flex items-center gap-3">
-                <span>
-                  <kbd className="px-1 py-0.5 rounded border border-line">↑↓</kbd> navigate
+            <div className="flex items-center justify-between gap-3 border-t border-line bg-ink-2/50 px-3 py-2 text-[11.5px] text-text-tertiary tracking-[-0.005em]">
+              <div className="flex items-center gap-3.5">
+                <span className="inline-flex items-center gap-1.5">
+                  <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px]">↑↓</kbd>
+                  Navigate
                 </span>
-                <span>
-                  <kbd className="px-1 py-0.5 rounded border border-line">↵</kbd> run
+                <span className="inline-flex items-center gap-1.5">
+                  <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px]">↵</kbd>
+                  Run
                 </span>
               </div>
-              <span>
-                <kbd className="px-1 py-0.5 rounded border border-line">esc</kbd> close
+              <span className="inline-flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px]">esc</kbd>
+                Close
               </span>
             </div>
           </motion.div>
@@ -321,9 +352,9 @@ export function CommandPalette({ open, onClose, onOpenSettings }: Props) {
 }
 
 function SectionTag({ section }: { section: Item["section"] }) {
-  const label = section === "project" ? "project" : section === "file" ? "file" : "action";
+  const label = section === "project" ? "Project" : section === "file" ? "File" : "Action";
   return (
-    <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-text-secondary/60">
+    <span className="text-[10.5px] text-text-tertiary tracking-[-0.005em]">
       {label}
     </span>
   );

@@ -1,0 +1,63 @@
+[package]
+name = "idex-desktop"
+version = "0.1.0"
+description = "IDEX — Interactive Dev Experience"
+authors = ["Manny <info@devvcore.com>"]
+edition = "2021"
+rust-version = "1.77"
+
+[[bin]]
+name = "idex-desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Tauri runtime + the plugins we wire up below.
+tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-os = "2"
+
+# JSON config persistence (~/.idex/config.json mirrors the Electron build).
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# OS keychain — Anthropic / OpenRouter / Composio API keys.
+keyring = "3"
+
+# Async runtime + utilities. tokio matches what most Tauri plugins use.
+tokio = { version = "1", features = ["full"] }
+parking_lot = "0.12"
+once_cell = "1"
+anyhow = "1"
+
+# PTY support for the agent + integrated terminal. portable-pty is the
+# cross-platform equivalent of node-pty — the same one Wezterm and Zed
+# use under the hood.
+portable-pty = "0.8"
+
+# Session UUIDs for the agent registry.
+uuid = { version = "1", features = ["v4"] }
+
+# Logging.
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Where reqwest is needed for curator-side fetches we'll add later, but
+# the front-end already does HTTP via fetch() so we can defer adding it
+# until shell/agent surfaces are stable.
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+incremental = false
+opt-level = 3
+strip = true

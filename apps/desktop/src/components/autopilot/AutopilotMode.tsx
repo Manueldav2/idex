@@ -93,24 +93,24 @@ function StatusBar({
       <div className="flex items-center gap-2.5 min-w-0">
         <span
           className={cn(
-            "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider",
+            "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] tracking-[-0.005em]",
             pill.className,
           )}
         >
           <span className={cn("size-1.5 rounded-full", pill.dotClass)} />
           {pill.label}
         </span>
-        <span className="text-[11px] font-mono text-text-secondary tabular-nums">
+        <span className="text-[11.5px] font-mono text-text-secondary tabular-nums">
           {elapsed}
         </span>
       </div>
       <button
         onClick={onCancel}
         title="Cancel autopilot (⌘.)"
-        className="press-feedback inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-mono text-text-secondary hover:text-error hover:bg-error/10 border border-line hover:border-error/40 transition-colors"
+        className="press-feedback inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px] text-text-secondary hover:text-error hover:bg-error/10 transition-colors"
       >
-        <XCircle className="size-3" />
-        cancel
+        <XCircle className="size-3.5" />
+        Cancel
       </button>
     </div>
   );
@@ -119,18 +119,17 @@ function StatusBar({
 function GoalCard({ goal }: { goal: string | null }) {
   return (
     <div className="px-4 pt-4 pb-3 border-b border-line">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-[9px] uppercase tracking-[0.24em] font-mono text-text-secondary">
-          goal
+      <div className="mb-2">
+        <span className="text-[11px] text-text-tertiary tracking-[-0.005em]">
+          Goal
         </span>
       </div>
       <blockquote
-        className="border-l-2 border-accent/60 pl-3 py-1 text-text-primary"
+        className="serif border-l-2 border-accent/60 pl-3 py-1 text-text-primary"
         style={{
-          fontFamily: "'Instrument Serif', ui-serif, Georgia, serif",
-          fontSize: "18px",
+          fontSize: "19px",
           lineHeight: 1.35,
-          letterSpacing: "-0.01em",
+          letterSpacing: "-0.015em",
         }}
       >
         {goal ?? "—"}
@@ -149,10 +148,10 @@ function LivePreview({
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <span className="text-[9px] uppercase tracking-[0.24em] font-mono text-text-secondary">
-          live
+        <span className="text-[11px] text-text-tertiary tracking-[-0.005em]">
+          Live
         </span>
-        <span className="text-[9px] font-mono text-text-secondary/60">
+        <span className="text-[11px] font-mono text-text-tertiary tabular-nums">
           {lines.length} line{lines.length === 1 ? "" : "s"}
         </span>
       </div>
@@ -221,11 +220,11 @@ function InjectPanel({
     <div className="border-t border-line bg-ink-1">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 text-[10px] uppercase tracking-[0.24em] font-mono text-text-secondary hover:text-text-primary transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-[12px] text-text-secondary hover:text-text-primary transition-colors tracking-[-0.005em]"
       >
-        <span>inject context</span>
-        <span className="text-text-secondary/60 normal-case tracking-normal">
-          {open ? "hide" : "add"}
+        <span>Inject context</span>
+        <span className="text-text-tertiary">
+          {open ? "Hide" : "Add"}
         </span>
       </button>
       {open && (
@@ -255,15 +254,15 @@ function InjectPanel({
             }}
           />
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono text-text-secondary/60">
-              arrives between the agent's turns
+            <span className="text-[11.5px] text-text-tertiary tracking-[-0.005em]">
+              Arrives between the agent's turns
             </span>
             <button
               onClick={() => void handleSend()}
               disabled={!canSend}
               className={cn(
                 "press-feedback inline-flex items-center gap-1.5 rounded-md px-2.5 py-1",
-                "text-[11px] font-display font-semibold tracking-tight",
+                "text-[12px] font-medium tracking-[-0.01em]",
                 "bg-accent text-white hover:brightness-110 transition-[filter]",
                 "disabled:opacity-50 disabled:pointer-events-none",
               )}
@@ -300,31 +299,31 @@ function pillForStatus(status: "idle" | "running" | "paused" | "done" | "error")
   switch (status) {
     case "running":
       return {
-        label: "running",
+        label: "Running",
         className: "bg-accent-soft text-accent",
         dotClass: "bg-accent dot-halo-pulse",
       };
     case "paused":
       return {
-        label: "paused",
+        label: "Paused",
         className: "bg-ink-2 text-text-secondary",
         dotClass: "bg-text-secondary",
       };
     case "done":
       return {
-        label: "done",
+        label: "Done",
         className: "bg-ink-2 text-text-secondary",
         dotClass: "bg-text-secondary",
       };
     case "error":
       return {
-        label: "error",
+        label: "Error",
         className: "bg-error/15 text-error",
         dotClass: "bg-error",
       };
     default:
       return {
-        label: "idle",
+        label: "Idle",
         className: "bg-ink-2 text-text-secondary",
         dotClass: "bg-text-secondary",
       };

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "IDEX",
+  "version": "0.1.0",
+  "identifier": "com.devvcore.idex",
+  "build": {
+    "beforeDevCommand": "pnpm vite --port 5179",
+    "devUrl": "http://localhost:5179",
+    "beforeBuildCommand": "pnpm vite build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "title": "IDEX",
+        "label": "main",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 960,
+        "minHeight": 600,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "transparent": false,
+        "decorations": true,
+        "resizable": true,
+        "fullscreen": false,
+        "backgroundColor": "#0B0C10"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://platform.twitter.com; worker-src 'self' blob:; child-src 'self' blob:; style-src 'self' 'unsafe-inline' https://platform.twitter.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:; img-src 'self' https: data:; connect-src 'self' ipc: https://ipc.localhost https://api.openrouter.ai https://openrouter.ai https://backend.composio.dev https://hn.algolia.com https://www.reddit.com https://i.redd.it https://preview.redd.it https://api.bsky.app https://cdn.bsky.app https://api.x.com https://api.twitter.com; frame-src https://platform.twitter.com;"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns"
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "Cockpit for your coding agent",
+    "longDescription": "IDEX wraps Claude Code, Codex, and Freebuff in a Chromium cockpit with a contextual feed during the wait."
+  },
+  "plugins": {}
+}

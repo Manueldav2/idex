@@ -5,6 +5,7 @@ import { useSettings } from "@/store/settings";
 import { useFeed } from "@/store/feed";
 import { useAutopilot } from "@/store/autopilot";
 import { useWorkspace } from "@/store/workspace";
+import { useEditorUI } from "@/store/editor-ui";
 import { wireProjectsToSettings } from "@/store/projects";
 import { SessionTabs } from "./SessionTabs";
 import { SessionView } from "./SessionView";
@@ -13,7 +14,6 @@ import { IdexLogo } from "./IdexLogo";
 import { EditorMode } from "./editor/EditorMode";
 import { AutopilotMode } from "./autopilot/AutopilotMode";
 import { AutopilotLauncher } from "./autopilot/AutopilotLauncher";
-import { Sidebar } from "./Sidebar";
 import { CommandPalette } from "./CommandPalette";
 import { ProjectsLauncher } from "./projects/ProjectsLauncher";
 import { Settings as SettingsDrawer } from "./Settings";
@@ -58,9 +58,8 @@ export function Cockpit() {
     void patchConfig({ mode: next });
   };
 
-  // Spawn a first session on mount if none exists — only relevant for agent
-  // mode, but we keep the session alive regardless so state persists when the
-  // user toggles modes.
+  // Spawn a first session on mount if none exists. IDEX hosts the
+  // agent terminal inline — same model as Cursor's integrated terminal.
   useEffect(() => {
     if (order.length === 0) {
       void createSession({ agentId: config.selectedAgent });
@@ -69,7 +68,8 @@ export function Cockpit() {
 
   // Keyboard shortcuts. Session-nav shortcuts are agent-mode only; ⌘E and
   // ⌘P toggle modes globally; ⌘. cancels an autopilot run; ⌘K opens the
-  // command palette from anywhere.
+  // command palette; ⌘⇧O opens a folder; ⌘, opens the settings/setup
+  // screen.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey;
@@ -107,6 +107,36 @@ export function Cockpit() {
         return;
       }
 
+      // ⌘, → settings (re-run setup). Cursor/VSCode convention.
+      if (e.key === ",") {
+        e.preventDefault();
+        void patchConfig({ privacyDisclosureAccepted: false });
+        return;
+      }
+
+      // ⌘⇧O → open folder. (⌘O in Cursor opens file; we don't have a
+      // raw-file-open IPC yet so folder-open is the useful analog.)
+      if (e.shiftKey && (e.key === "o" || e.key === "O")) {
+        e.preventDefault();
+        void useWorkspace.getState().openWorkspace();
+        return;
+      }
+
+      // ⌘` → toggle the integrated terminal. Matches Cursor / VSCode.
+      // Also snaps into editor mode so the terminal has somewhere to
+      // appear (otherwise it'd open "in agent mode" which is confusing).
+      if (e.key === "`" || e.code === "Backquote") {
+        e.preventDefault();
+        useEditorUI.getState().toggleTerminal();
+        // Re-read state AFTER the toggle — getState() returns a fresh
+        // snapshot each call. If the terminal just became open and we
+        // aren't in editor mode, snap there.
+        if (useEditorUI.getState().terminalOpen && mode !== "editor") {
+          setMode("editor");
+        }
+        return;
+      }
+
       if (mode !== "agent") return;
 
       if (e.key === "t") {
@@ -126,7 +156,7 @@ export function Cockpit() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeId, autopilotCancel, autopilotGoal, config.selectedAgent, createSession, closeSession, mode, order, setActive]);
+  }, [activeId, autopilotCancel, autopilotGoal, config.selectedAgent, createSession, closeSession, mode, order, patchConfig, setActive]);
 
   const active = activeId ? sessions[activeId] : null;
   const lastError = active?.lastError ?? null;
@@ -151,31 +181,29 @@ export function Cockpit() {
 
   return (
     <div className="flex h-full w-full bg-ink-0">
-      <main className="relative flex h-full flex-1 flex-col bg-ink-1 border-r border-line min-w-0">
+      <main className="relative flex h-full flex-1 flex-col bg-ink-0 border-r border-line min-w-0">
         <header className="glass draggable flex items-center justify-between border-b border-line pl-24 pr-4 py-3 h-14 shrink-0">
-          <div className="flex items-center gap-4 no-drag min-w-0">
+          <div className="flex items-center gap-3.5 no-drag min-w-0">
             <IdexLogo />
-            <div className="text-[12px] font-mono text-text-secondary flex items-center gap-2 min-w-0">
-              <span className="text-text-primary font-medium truncate">
+            <span className="h-4 w-px bg-line shrink-0" />
+            <div className="text-[13px] text-text-secondary flex items-center gap-2 min-w-0 tracking-[-0.005em]">
+              <span className="text-text-primary truncate">
                 {mode === "editor"
-                  ? "editor"
+                  ? "Editor"
                   : mode === "autopilot"
-                    ? "autopilot"
-                    : active?.session.label ?? "no session"}
-              </span>
-              <span className="ml-1 inline-block px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider bg-accent-soft text-accent shrink-0">
-                v0.1
+                    ? "Autopilot"
+                    : active?.session.label ?? "Agent"}
               </span>
               {displayWorkspace && (
                 <>
-                  <span className="opacity-30 mx-0.5">·</span>
+                  <span className="text-text-tertiary/60 mx-0.5">/</span>
                   <button
                     onClick={() => setMode("editor")}
                     title={`workspace: ${activeWorkspace}\nClick to open editor`}
-                    className="press-feedback group inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 hover:bg-ink-2 transition-colors min-w-0"
+                    className="press-feedback group inline-flex items-center gap-1.5 rounded px-1 py-0.5 hover:bg-ink-2/70 transition-colors min-w-0"
                   >
-                    <Folder className="size-3 text-text-secondary group-hover:text-accent shrink-0 transition-colors" />
-                    <span className="truncate max-w-[180px] text-text-secondary group-hover:text-text-primary">
+                    <Folder className="size-3.5 text-text-tertiary group-hover:text-text-secondary shrink-0 transition-colors" />
+                    <span className="truncate max-w-[200px] font-mono text-[12px] text-text-secondary group-hover:text-text-primary">
                       {displayWorkspace}
                     </span>
                   </button>
@@ -183,14 +211,14 @@ export function Cockpit() {
               )}
             </div>
           </div>
-          <div className="no-drag flex items-center gap-2">
+          <div className="no-drag flex items-center gap-1.5">
             <button
               onClick={() => setProjectsModalOpen(true)}
               title="Projects"
-              className="press-feedback inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-mono text-text-secondary hover:text-text-primary hover:bg-ink-2 transition-colors"
+              className="press-feedback inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] text-text-secondary hover:text-text-primary hover:bg-ink-2 transition-colors"
             >
               <FolderOpen className="size-3.5" />
-              projects
+              Projects
             </button>
             <ModeToggle mode={mode} onChange={setMode} />
             <div className="w-px h-4 bg-line mx-1" />
@@ -216,7 +244,7 @@ export function Cockpit() {
         {mode === "agent" && (lastError || globalError) && (
           <div className="border-b border-error/25 bg-error/10 px-6 py-3 text-[12px] text-error flex items-start justify-between gap-4">
             <div className="flex-1 leading-relaxed">
-              <span className="font-semibold">Couldn't start your agent.</span>{" "}
+              <span className="font-semibold">Couldn't launch your agent.</span>{" "}
               <span className="opacity-80">{lastError ?? globalError}</span>
               <div className="mt-1.5 text-[11px] font-mono text-text-secondary">
                 install:{" "}
@@ -246,8 +274,23 @@ export function Cockpit() {
           Sidebar when mode === "editor".
         */}
         <div className="relative flex-1 min-h-0 flex">
-          {mode !== "editor" && !showFullscreenLauncher && <Sidebar mode={mode} />}
-          <div className="relative flex-1 min-h-0">
+          {/*
+            Sidebar (file tree + Open editors) only shows in editor mode
+            now. Agent and autopilot modes don't benefit from it — the
+            user's there to talk to Claude, not browse files — and
+            having it around was crowding the terminal column. To reach
+            files, press ⌘E.
+          */}
+          {/*
+            min-w-0 here is load-bearing. Without it, this flex child
+            gets the default min-width:auto, which makes it grow to its
+            content's natural width (xterm reports its preferred cols
+            as content) and the FeedPane next door gets squeezed —
+            *or* this surface gets squeezed and xterm reads a 0px
+            container, fitting to ~10 cols. min-w-0 lets the row
+            distribute width purely by flex-1 / explicit feed width.
+          */}
+          <div className="relative flex-1 min-w-0 min-h-0">
             {showFullscreenLauncher ? (
               <ProjectsLauncher onProjectOpened={() => { /* tree loads automatically */ }} />
             ) : (
@@ -261,15 +304,37 @@ export function Cockpit() {
                   style={{ display: mode === "agent" ? "block" : "none" }}
                   className="absolute inset-0"
                 >
-                  {order.length === 0 ? (
-                    <EmptyState onNew={() => void createSession({ agentId: config.selectedAgent })} />
-                  ) : (
-                    order.map((id) => {
+                  {/*
+                    Embedded xterm — same model as Cursor's integrated
+                    terminal. All agent rendering happens inline; the
+                    feed lives next to it. Shell sessions are filtered
+                    out (they live in editor mode's TerminalPanel).
+                  */}
+                  {(() => {
+                    const agentSessions = order.filter(
+                      (id) => sessions[id]?.session.agentId !== "shell",
+                    );
+                    if (agentSessions.length === 0) {
+                      return (
+                        <EmptyState
+                          onNew={() =>
+                            void createSession({ agentId: config.selectedAgent })
+                          }
+                        />
+                      );
+                    }
+                    return agentSessions.map((id) => {
                       const sd = sessions[id];
                       if (!sd) return null;
-                      return <SessionView key={id} data={sd} active={id === activeId} />;
-                    })
-                  )}
+                      return (
+                        <SessionView
+                          key={id}
+                          data={sd}
+                          active={id === activeId}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
                 {mode === "editor" && (
                   <div className="absolute inset-0">
@@ -286,76 +351,45 @@ export function Cockpit() {
           </div>
         </div>
 
-        <footer className="border-t border-line bg-ink-1 px-6 py-2 flex items-center justify-between text-[10px] font-mono text-text-secondary shrink-0">
-          <div className="flex items-center gap-3">
+        <footer className="border-t border-line bg-ink-0 px-6 py-2 flex items-center justify-between text-[11.5px] text-text-tertiary shrink-0 tracking-[-0.005em]">
+          <div className="flex items-center gap-3.5">
             {mode === "agent" && (
               <>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘T</kbd> new
-                </span>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘W</kbd> close
-                </span>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘1-9</kbd> switch
-                </span>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘K</kbd> palette
-                </span>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘P</kbd> autopilot
-                </span>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘,</kbd> settings
-                </span>
-                <span className="opacity-50 ml-2">·</span>
+                <FooterKey hint="New" chord="⌘T" />
+                <FooterKey hint="Close" chord="⌘W" />
+                <FooterKey hint="Switch" chord="⌘1-9" />
+                <FooterKey hint="Palette" chord="⌘K" />
+                <FooterKey hint="Autopilot" chord="⌘P" />
+                <FooterKey hint="Settings" chord="⌘," />
+                <span className="text-text-tertiary/60 ml-1">·</span>
                 <span>{order.length} session{order.length === 1 ? "" : "s"}</span>
               </>
             )}
             {mode === "autopilot" && (
               <>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘P</kbd> agent
-                </span>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘K</kbd> palette
-                </span>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘,</kbd> settings
-                </span>
-                {autopilotGoal && (
-                  <span className="opacity-70">
-                    <kbd className="px-1 py-0.5 rounded border border-line">⌘.</kbd> cancel
-                  </span>
-                )}
+                <FooterKey hint="Agent" chord="⌘P" />
+                <FooterKey hint="Palette" chord="⌘K" />
+                <FooterKey hint="Settings" chord="⌘," />
+                {autopilotGoal && <FooterKey hint="Cancel" chord="⌘." />}
               </>
             )}
             {mode === "editor" && (
               <>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘S</kbd> save
-                </span>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘B</kbd> sidebar
-                </span>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘E</kbd> agent
-                </span>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘K</kbd> palette
-                </span>
-                <span className="opacity-70">
-                  <kbd className="px-1 py-0.5 rounded border border-line">⌘,</kbd> settings
-                </span>
+                <FooterKey hint="Save" chord="⌘S" />
+                <FooterKey hint="Sidebar" chord="⌘B" />
+                <FooterKey hint="Agent" chord="⌘E" />
+                <FooterKey hint="Terminal" chord="⌘`" />
+                <FooterKey hint="Palette" chord="⌘K" />
+                <FooterKey hint="Settings" chord="⌘," />
               </>
             )}
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => void patchConfig({ feedEnabled: !config.feedEnabled })}
-              className="press-feedback opacity-70 hover:opacity-100 hover:text-accent"
+              className="press-feedback hover:text-accent transition-colors"
             >
-              feed {config.feedEnabled ? "on" : "off"}
+              Feed {config.feedEnabled ? "on" : "off"}
             </button>
           </div>
         </footer>
@@ -419,11 +453,16 @@ function ModeToggle({ mode, onChange }: { mode: CockpitMode; onChange: (m: Cockp
     autopilot: "Autopilot mode (⌘P)",
     editor: "Editor mode (⌘E)",
   };
+  const labelForMode: Record<CockpitMode, string> = {
+    agent: "Agent",
+    autopilot: "Autopilot",
+    editor: "Editor",
+  };
   return (
     <div
       role="tablist"
       aria-label="Cockpit mode"
-      className="inline-flex items-center rounded-md border border-line bg-ink-2/60 p-0.5"
+      className="inline-flex items-center rounded-md border border-line bg-ink-2/50 p-0.5"
     >
       {(["agent", "autopilot", "editor"] as const).map((m) => {
         const active = mode === m;
@@ -434,18 +473,29 @@ function ModeToggle({ mode, onChange }: { mode: CockpitMode; onChange: (m: Cockp
             aria-selected={active}
             onClick={() => onChange(m)}
             className={cn(
-              "press-feedback text-[11px] font-mono px-2 py-1 rounded transition-colors",
+              "press-feedback text-[12px] px-2.5 py-1 rounded-[5px] transition-colors tracking-[-0.005em]",
               active
                 ? "bg-ink-0 text-text-primary"
                 : "text-text-secondary hover:text-text-primary",
             )}
             title={titleForMode[m]}
           >
-            {m}
+            {labelForMode[m]}
           </button>
         );
       })}
     </div>
+  );
+}
+
+function FooterKey({ hint, chord }: { hint: string; chord: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <kbd className="px-1.5 py-[1.5px] rounded border border-line bg-ink-2/60 font-mono text-[10.5px] text-text-secondary">
+        {chord}
+      </kbd>
+      <span className="text-text-tertiary">{hint}</span>
+    </span>
   );
 }
 
@@ -454,10 +504,9 @@ function EmptyState({ onNew }: { onNew: () => void }) {
     <div className="h-full flex items-center justify-center">
       <button
         onClick={onNew}
-        className="press-feedback text-text-secondary hover:text-text-primary text-sm font-mono"
+        className="press-feedback text-text-secondary hover:text-text-primary text-[13.5px] tracking-[-0.005em]"
       >
-        click <span className="text-accent">+ new</span> or press{" "}
-        <kbd className="px-1.5 py-0.5 rounded border border-line">⌘T</kbd> to start a session
+        Press <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[11.5px]">⌘T</kbd> to start a session
       </button>
     </div>
   );

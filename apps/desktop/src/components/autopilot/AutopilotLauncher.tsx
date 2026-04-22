@@ -50,27 +50,26 @@ export function AutopilotLauncher() {
         transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
         className="w-full max-w-[640px]"
       >
-        <div className="mb-8 flex items-center gap-2.5">
+        <div className="mb-8 inline-flex items-center gap-2">
           <span className="size-1.5 rounded-full bg-accent" />
-          <span className="text-[10px] uppercase tracking-[0.24em] font-mono text-text-secondary">
-            autopilot
+          <span className="text-[12px] text-text-tertiary tracking-[-0.005em]">
+            Autopilot
           </span>
         </div>
 
         <h1
-          className="font-display text-text-primary"
+          className="serif text-text-primary"
           style={{
-            fontFamily: "'Instrument Serif', ui-serif, Georgia, serif",
-            fontSize: "56px",
+            fontSize: "60px",
             lineHeight: 1.02,
-            letterSpacing: "-0.02em",
-            fontWeight: 400,
+            letterSpacing: "-0.025em",
+            fontWeight: 500,
           }}
         >
           What do you want to build?
         </h1>
-        <p className="mt-4 text-text-secondary text-[14px] leading-relaxed max-w-[520px]">
-          It'll plan, research, and work on it while you scroll.
+        <p className="mt-5 text-text-secondary text-[14.5px] leading-relaxed max-w-[520px] tracking-[-0.005em]">
+          Autopilot plans and works while you scroll. Cancel anytime.
         </p>
 
         <div className="mt-8">
@@ -102,9 +101,9 @@ export function AutopilotLauncher() {
         )}
 
         <div className="mt-5 flex items-center justify-between gap-4">
-          <span className="text-[11px] font-mono text-text-secondary/70">
-            stay scrolling. cancel anytime with{" "}
-            <kbd className="px-1.5 py-0.5 rounded border border-line text-text-secondary">
+          <span className="text-[12px] text-text-tertiary tracking-[-0.005em]">
+            Cancel anytime with{" "}
+            <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px] text-text-secondary">
               ⌘.
             </kbd>
           </span>
@@ -113,15 +112,15 @@ export function AutopilotLauncher() {
             disabled={!canSubmit}
             className={cn(
               "press-feedback inline-flex items-center gap-2 rounded-lg px-4 py-2",
-              "text-[13px] font-display font-semibold tracking-tight",
+              "text-[13.5px] font-medium tracking-[-0.01em]",
               "bg-accent text-white shadow-[0_4px_12px_rgba(61,123,255,0.25)]",
               "hover:brightness-110 active:brightness-95 transition-[filter]",
               "disabled:opacity-50 disabled:pointer-events-none",
             )}
           >
             <Rocket className="size-3.5" />
-            {submitting ? "starting…" : "Run autopilot"}
-            <span className="ml-1 opacity-60 text-[10px] font-mono">⌘↵</span>
+            {submitting ? "Starting…" : "Run autopilot"}
+            <span className="ml-1 opacity-70 text-[11px] font-mono">⌘↵</span>
           </button>
         </div>
       </motion.div>

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useSettings } from "./store/settings";
 import { useAgent } from "./store/agent";
 import { useFeed } from "./store/feed";
+import { useAutopilot } from "./store/autopilot";
 import { Setup } from "./components/Setup";
 import { Cockpit } from "./components/Cockpit";
 
@@ -15,9 +16,11 @@ export default function App() {
   useEffect(() => {
     const offAgent = useAgent.getState().bindStreams();
     const offFeed = useFeed.getState().bindToAgent();
+    const offAutopilot = useAutopilot.getState().bindToAgent();
     return () => {
       offAgent();
       offFeed();
+      offAutopilot();
     };
   }, []);
 

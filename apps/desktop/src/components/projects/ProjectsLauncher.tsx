@@ -56,13 +56,13 @@ export function ProjectsLauncher({
     >
       <header className="flex items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.24em] text-text-secondary">
-            <Sparkles className="size-3 text-accent" /> projects
+          <div className="inline-flex items-center gap-1.5 text-[11.5px] text-text-tertiary tracking-[-0.005em]">
+            <Sparkles className="size-3 text-accent" /> Projects
           </div>
-          <h1 className="mt-1 font-display font-semibold text-text-primary text-3xl leading-[1.05] tracking-tight">
+          <h1 className="serif mt-1.5 text-text-primary text-[34px] leading-[1.05] tracking-[-0.02em] font-medium">
             Pick up where you left off.
           </h1>
-          <p className="mt-2 text-sm text-text-secondary max-w-md leading-relaxed">
+          <p className="mt-2.5 text-[13.5px] text-text-secondary max-w-md leading-relaxed tracking-[-0.005em]">
             Open a folder to give your agent a workspace. Recents live here
             until you clear them.
           </p>
@@ -96,11 +96,11 @@ export function ProjectsLauncher({
 
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h2 className="text-[11px] font-mono uppercase tracking-[0.22em] text-text-secondary">
-            recent
+          <h2 className="text-[13px] text-text-secondary tracking-[-0.005em] font-medium">
+            Recent
           </h2>
           {recents.length > 0 && (
-            <span className="text-[10px] font-mono text-text-secondary/60">
+            <span className="text-[11.5px] font-mono text-text-tertiary tabular-nums">
               {recents.length}/{10}
             </span>
           )}
@@ -307,8 +307,8 @@ function NewProjectDialog({
 
         <div className="mt-4 flex flex-col gap-3">
           <div>
-            <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-text-secondary">
-              parent directory
+            <label className="text-[12px] text-text-secondary tracking-[-0.005em]">
+              Parent directory
             </label>
             <div className="mt-1 flex items-center gap-2">
               <div
@@ -330,8 +330,8 @@ function NewProjectDialog({
           </div>
 
           <div>
-            <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-text-secondary">
-              folder name
+            <label className="text-[12px] text-text-secondary tracking-[-0.005em]">
+              Folder name
             </label>
             <input
               autoFocus

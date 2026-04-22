@@ -70,24 +70,31 @@ const IDEX_THEME: monaco.editor.IStandaloneThemeData = {
   base: "vs-dark",
   inherit: true,
   rules: [],
+  // Palette matches our @theme tokens so the editor dissolves into the
+  // rest of the chrome instead of feeling like a pasted-in VSCode pane.
   colors: {
-    "editor.background": "#0A0B0E",
-    "editor.foreground": "#F2F4F7",
-    "editorLineNumber.foreground": "#414654",
-    "editorLineNumber.activeForeground": "#8B92A5",
+    "editor.background": "#0B0C10",
+    "editor.foreground": "#EEF0F3",
+    "editorLineNumber.foreground": "#3D4250",
+    "editorLineNumber.activeForeground": "#8A91A2",
     "editorCursor.foreground": "#3D7BFF",
-    "editor.selectionBackground": "#3D7BFF40",
-    "editor.inactiveSelectionBackground": "#3D7BFF20",
-    "editor.lineHighlightBackground": "#13151B",
-    "editor.lineHighlightBorder": "#13151B",
-    "editorIndentGuide.background1": "#1C1F28",
-    "editorIndentGuide.activeBackground1": "#22252F",
-    "editorGutter.background": "#0A0B0E",
-    "editorWidget.background": "#13151B",
-    "editorWidget.border": "#22252F",
-    "scrollbarSlider.background": "#FFFFFF10",
-    "scrollbarSlider.hoverBackground": "#FFFFFF20",
-    "scrollbarSlider.activeBackground": "#FFFFFF30",
+    "editor.selectionBackground": "#3D7BFF38",
+    "editor.inactiveSelectionBackground": "#3D7BFF1C",
+    "editor.lineHighlightBackground": "#121419",
+    "editor.lineHighlightBorder": "#121419",
+    "editorIndentGuide.background1": "#191C24",
+    "editorIndentGuide.activeBackground1": "#1D2029",
+    "editorGutter.background": "#0B0C10",
+    "editorWidget.background": "#121419",
+    "editorWidget.border": "#1D2029",
+    "editorSuggestWidget.background": "#121419",
+    "editorSuggestWidget.border": "#1D2029",
+    "editorSuggestWidget.selectedBackground": "#3D7BFF22",
+    "editor.findMatchBackground": "#3D7BFF40",
+    "editor.findMatchHighlightBackground": "#3D7BFF22",
+    "scrollbarSlider.background": "#FFFFFF0E",
+    "scrollbarSlider.hoverBackground": "#FFFFFF1C",
+    "scrollbarSlider.activeBackground": "#FFFFFF28",
   },
 };
 
@@ -151,68 +158,150 @@ export function Editor({ file }: Props) {
   if (fallback) {
     return (
       <div className="relative flex-1 min-h-0 bg-ink-0 flex flex-col">
-        <div className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.24em] text-amber-400/80 border-b border-line shrink-0">
-          editor fallback · monaco unavailable
+        <div className="px-4 py-1.5 text-[11.5px] text-amber-400/80 border-b border-line shrink-0 tracking-[-0.005em]">
+          Editor fallback · Monaco unavailable
         </div>
         <textarea
           spellCheck={false}
           value={file.content}
           onChange={(e) => updateContent(file.path, e.target.value)}
-          className="flex-1 min-h-0 w-full resize-none bg-ink-0 text-text-primary font-mono text-[13px] leading-[1.55] px-4 py-3 outline-none border-0"
+          className="flex-1 min-h-0 w-full resize-none bg-ink-0 text-text-primary text-[13px] leading-[1.55] px-4 py-3 outline-none border-0"
           style={{
-            fontFamily: '"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace',
+            fontFamily: '"Geist Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace',
             tabSize: 2,
           }}
         />
+        <EditorStatusBar file={file} />
       </div>
     );
   }
 
   return (
-    <div className="relative flex-1 min-h-0 bg-ink-0">
-      <MonacoEditor
-        height="100%"
-        width="100%"
-        theme="idex-dark"
-        path={file.path}
-        language={file.modelLanguage}
-        value={file.content}
-        onChange={(value) => updateContent(file.path, value ?? "")}
-        onMount={handleMount}
-        loading={<EditorLoading />}
-        options={{
-          fontFamily: '"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace',
-          fontSize: 13,
-          lineHeight: 1.55,
-          minimap: { enabled: false },
-          automaticLayout: true,
-          scrollBeyondLastLine: false,
-          renderLineHighlight: "line",
-          smoothScrolling: true,
-          cursorSmoothCaretAnimation: "on",
-          cursorBlinking: "smooth",
-          fontLigatures: true,
-          tabSize: 2,
-          wordWrap: "off",
-          padding: { top: 12, bottom: 12 },
-          stickyScroll: { enabled: false },
-          guides: { indentation: true, highlightActiveIndentation: true },
-          scrollbar: {
-            verticalScrollbarSize: 8,
-            horizontalScrollbarSize: 8,
-            useShadows: false,
-          },
-        }}
-      />
+    <div className="relative flex-1 min-h-0 bg-ink-0 flex flex-col">
+      <div className="relative flex-1 min-h-0">
+        <MonacoEditor
+          height="100%"
+          width="100%"
+          theme="idex-dark"
+          path={file.path}
+          language={file.modelLanguage}
+          value={file.content}
+          onChange={(value) => updateContent(file.path, value ?? "")}
+          onMount={handleMount}
+          loading={<EditorLoading />}
+          options={{
+            fontFamily: '"Geist Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace',
+            fontSize: 13,
+            lineHeight: 1.55,
+            minimap: { enabled: false },
+            automaticLayout: true,
+            scrollBeyondLastLine: false,
+            renderLineHighlight: "line",
+            smoothScrolling: true,
+            cursorSmoothCaretAnimation: "on",
+            cursorBlinking: "smooth",
+            fontLigatures: true,
+            tabSize: 2,
+            wordWrap: "off",
+            padding: { top: 12, bottom: 12 },
+            stickyScroll: { enabled: false },
+            guides: { indentation: true, highlightActiveIndentation: true },
+            scrollbar: {
+              verticalScrollbarSize: 8,
+              horizontalScrollbarSize: 8,
+              useShadows: false,
+            },
+          }}
+        />
+      </div>
+      <EditorStatusBar file={file} />
     </div>
   );
+}
+
+/**
+ * Bottom status strip — shows language, line count, and dirty state. Not
+ * a full diagnostics bar yet (no errors/warnings), but enough to make the
+ * editor feel like a real IDE instead of a headless textarea. Lives in
+ * its own component so the fallback path can reuse it.
+ */
+function EditorStatusBar({ file }: { file: OpenFile }) {
+  const lines = file.content.split("\n").length;
+  const lang = humanLanguageLabel(file.modelLanguage);
+  return (
+    <div className="shrink-0 flex items-center justify-between gap-3 border-t border-line bg-ink-1 px-3 py-1.5 text-[11.5px] text-text-tertiary tracking-[-0.005em]">
+      <div className="flex items-center gap-3">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-1.5 rounded-full bg-accent" />
+          {lang}
+        </span>
+        <span className="font-mono tabular-nums text-[11px]">
+          {lines.toLocaleString()} line{lines === 1 ? "" : "s"}
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
+        {file.dirty ? (
+          <span className="text-accent inline-flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-accent" />
+            Unsaved
+          </span>
+        ) : (
+          <span className="text-text-tertiary/80">Saved</span>
+        )}
+        <span className="font-mono text-[10.5px] text-text-tertiary/70 truncate max-w-[320px]">
+          {file.path}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function humanLanguageLabel(id: string): string {
+  switch (id) {
+    case "typescript":
+      return "TypeScript";
+    case "javascript":
+      return "JavaScript";
+    case "python":
+      return "Python";
+    case "rust":
+      return "Rust";
+    case "go":
+      return "Go";
+    case "json":
+      return "JSON";
+    case "markdown":
+      return "Markdown";
+    case "css":
+      return "CSS";
+    case "scss":
+      return "SCSS";
+    case "less":
+      return "Less";
+    case "html":
+      return "HTML";
+    case "yaml":
+      return "YAML";
+    case "xml":
+      return "XML";
+    case "shell":
+      return "Shell";
+    case "sql":
+      return "SQL";
+    case "ini":
+      return "TOML";
+    case "plaintext":
+      return "Plain text";
+    default:
+      return id.charAt(0).toUpperCase() + id.slice(1);
+  }
 }
 
 function EditorLoading() {
   return (
     <div className="flex h-full w-full items-center justify-center bg-ink-0">
-      <span className="text-[11px] font-mono uppercase tracking-[0.24em] text-text-secondary animate-pulse">
-        loading editor…
+      <span className="text-[12.5px] text-text-tertiary tracking-[-0.005em] animate-pulse">
+        Loading editor…
       </span>
     </div>
   );

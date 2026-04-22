@@ -8,7 +8,7 @@
  *   - packages/curator (Curator pipeline)
  */
 
-export type AgentId = "claude-code" | "codex" | "freebuff";
+export type AgentId = "claude-code" | "codex" | "freebuff" | "shell";
 
 export type AgentState = "idle" | "spawning" | "generating" | "done" | "error";
 
@@ -57,6 +57,26 @@ export interface AgentStateEvent {
   state: AgentState;
 }
 
+/* ─────────────────────────────────────────── *
+ * External (Terminal.app) agent launching     *
+ * ─────────────────────────────────────────── */
+
+export interface ExternalAgentLaunchOptions {
+  agentId: AgentId;
+  cwd: string;
+  /** Optional pre-typed prompt to send into the agent immediately. */
+  initialPrompt?: string;
+}
+
+export interface ExternalAgentLaunchResult {
+  ok: boolean;
+  /** macOS Terminal.app window id; we use it to bring the window forward. */
+  windowId?: number;
+  /** Friendly label shown on the IDEX session card. */
+  label?: string;
+  error?: string;
+}
+
 export type ContextEvent =
   | { kind: "user_input"; text: string; ts: number }
   | { kind: "agent_chunk"; text: string; ts: number }
@@ -74,6 +94,14 @@ export const IPC = {
   AGENT_STATE: "agent:state",
   AGENT_KILL: "agent:kill",
   AGENT_RESIZE: "agent:resize",
+  /**
+   * Launch the agent CLI in the user's native Terminal.app instead of
+   * embedding a PTY. The native terminal renders Claude Code with
+   * Apple's text engine — perfect glyphs, no xterm font fights — at
+   * the cost of being a separate window. IDEX itself stays a feed +
+   * chrome shell.
+   */
+  AGENT_LAUNCH_EXTERNAL: "agent:launch-external",
   SESSION_LIST: "session:list",
   CONFIG_GET: "config:get",
   CONFIG_SET: "config:set",
@@ -125,7 +153,7 @@ export interface CardFallback {
 
 export interface Card {
   id: string;
-  source: "twitter" | "starter" | "ad" | "hackernews" | "reddit";
+  source: "twitter" | "starter" | "ad" | "hackernews" | "reddit" | "bluesky" | "x";
   url: string;
   oembed: OEmbedPayload | null;
   fallback?: CardFallback;
@@ -196,6 +224,14 @@ export interface AppConfig {
   hasSeenShortcutHint: boolean;
   /** LRU-ordered list of recently opened workspace folders (most recent first). */
   recentProjects: RecentProject[];
+  /**
+   * X (Twitter) API v2 Bearer Token. When present, the curator queries
+   * real X posts in addition to HN / Reddit / Bluesky. Stored on disk
+   * because the user will want it to survive app restarts; if this ever
+   * moves to the keychain, change to an id reference instead of the raw
+   * token.
+   */
+  xBearerToken: string | null;
   /** Opt-in anonymised telemetry for card impressions / thumbs. */
   curatorTelemetryEnabled: boolean;
 }
@@ -214,6 +250,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   workspacePath: null,
   hasSeenShortcutHint: false,
   recentProjects: [],
+  xBearerToken: null,
   curatorTelemetryEnabled: false,
 };
 

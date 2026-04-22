@@ -161,18 +161,6 @@ class AgentHost {
     this.sessions.set(sessionId, session);
     this.emitState(sessionId, "idle");
 
-    // Turn off terminal-side bracketed paste for shell-fallback sessions.
-    // xterm.js wraps pasted text in `\e[200~...\e[201~` when bracketed paste
-    // is enabled; bash's readline in a plain fallback shell doesn't filter
-    // those markers, so users would see a literal `[200~pwd` on the line.
-    // DECRST 2004 (`\e[?2004l`) tells xterm "this app doesn't understand
-    // bracketed paste — send pastes raw." Agent-backed sessions (claude,
-    // codex, freebuff) negotiate this themselves, so we only do it for
-    // the fallback path.
-    if (isShellFallback) {
-      pty.write("\x1b[?2004l");
-    }
-
     pty.onData((data) => this.handleData(sessionId, data));
     pty.onExit(({ exitCode, signal }) => {
       console.log(`[idex] session ${sessionId} exited code=${exitCode} signal=${signal ?? "-"}`);
@@ -207,10 +195,32 @@ class AgentHost {
       // setImmediate instead of process.nextTick so the renderer has a tick
       // to mount its listener after receiving the spawn success reply.
       setImmediate(() => {
+        // For shell-fallback sessions, prepend DECRST 2004 (`\e[?2004l`) so
+        // xterm.js stops wrapping pasted text in `\e[200~...\e[201~`. bash's
+        // readline in a plain fallback shell doesn't filter those markers,
+        // so users would otherwise see a literal `[200~pwd` on the prompt.
+        // The escape goes through onOutput (→ xterm's parser), NOT pty.write
+        // (which would send it to bash's stdin and be echoed back literally).
+        // Agent-backed sessions (claude, codex, freebuff) negotiate bracketed
+        // paste themselves, so we only do this on the fallback path.
+        const prefix = isShellFallback ? "\x1b[?2004l" : "";
+        const raw = prefix + fallbackBanner;
         this.cbs?.onOutput({
           sessionId,
-          raw: fallbackBanner,
+          raw,
           clean: fallbackBanner.replace(/\x1b\[[0-9;]*m/g, ""),
+          ts: Date.now(),
+        });
+      });
+    } else if (isShellFallback) {
+      // Unreachable today (shell fallback always ships with a banner), but
+      // keep the DECRST 2004 path independent of the banner so future
+      // changes don't silently re-enable bracketed paste.
+      setImmediate(() => {
+        this.cbs?.onOutput({
+          sessionId,
+          raw: "\x1b[?2004l",
+          clean: "",
           ts: Date.now(),
         });
       });

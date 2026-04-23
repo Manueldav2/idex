@@ -387,7 +387,13 @@ export async function curateLive(
   for (const q of queries) {
     fetches.push(searchHackerNews(q, 20));
     fetches.push(searchReddit(q, 15));
-    fetches.push(searchBluesky(q, 25));
+    // Bluesky is the zero-auth X replacement. The migration off
+    // Twitter (2023-2025) landed most dev-scene accounts here:
+    // simonw.bsky.social, dhh.bsky.social, swyx.bsky.social,
+    // paulg.bsky.social etc. Real avatars, real engagement, no auth.
+    // Ask for more per query than HN/Reddit because each Bluesky
+    // result already renders as a tweet-shaped card.
+    fetches.push(searchBluesky(q, 40));
     if (xToken) fetches.push(searchX(q, xToken, 40));
   }
   if (hasComposioX) {

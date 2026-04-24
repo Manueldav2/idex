@@ -25,6 +25,8 @@
 mod agent;
 mod config;
 mod keychain;
+mod scm;
+mod search;
 mod workspace;
 
 use tracing_subscriber::EnvFilter;
@@ -71,6 +73,14 @@ fn main() {
             agent::agent_kill,
             agent::agent_list,
             agent::agent_launch_external,
+            // search
+            search::search_workspace,
+            // scm
+            scm::scm_status,
+            scm::scm_diff,
+            scm::scm_stage,
+            scm::scm_commit,
+            scm::scm_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

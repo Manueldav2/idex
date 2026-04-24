@@ -114,28 +114,16 @@ export async function installTauriBridge(): Promise<void> {
       status: async () => ({ ok: true, status: "UNKNOWN" as const }),
     },
     search: {
-      workspace: async () => ({
-        ok: false,
-        files: [],
-        totalMatches: 0,
-        truncated: false,
-        elapsedMs: 0,
-        error: "Workspace search is not yet wired on the Tauri backend.",
-      }),
+      workspace: (rootPath, opts) =>
+        invoke("search_workspace", { rootPath, opts }),
     },
     scm: {
-      status: async () => ({
-        ok: false,
-        branch: null,
-        ahead: 0,
-        behind: 0,
-        files: [],
-        error: "Source control is not yet wired on the Tauri backend.",
-      }),
-      diff: async () => ({ ok: false, diff: "", error: "Tauri SCM TODO" }),
-      stage: async () => ({ ok: false, error: "Tauri SCM TODO" }),
-      commit: async () => ({ ok: false, error: "Tauri SCM TODO" }),
-      run: async () => ({ ok: false, error: "Tauri SCM TODO" }),
+      status: (rootPath) => invoke("scm_status", { rootPath }),
+      diff: (rootPath, path, staged = false) =>
+        invoke("scm_diff", { rootPath, path, staged }),
+      stage: (rootPath, args) => invoke("scm_stage", { rootPath, args }),
+      commit: (rootPath, args) => invoke("scm_commit", { rootPath, args }),
+      run: (rootPath, cmd) => invoke("scm_run", { rootPath, cmd }),
     },
   };
 

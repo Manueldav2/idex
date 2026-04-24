@@ -12,6 +12,15 @@ import type {
   ComposioConnectXRequest,
   ComposioConnectXResult,
   ComposioStatusResult,
+  SearchOptions,
+  SearchResult,
+  GitStatusResult,
+  GitDiffResult,
+  GitStageArgs,
+  GitCommitArgs,
+  GitCommitResult,
+  GitRunCommand,
+  GitRunResult,
   FileNode,
   KeychainKey,
   ProjectCreateFolderArgs,
@@ -68,6 +77,22 @@ const api = {
     connectX: (req: ComposioConnectXRequest = {}): Promise<ComposioConnectXResult> =>
       ipcRenderer.invoke(IPC.COMPOSIO_CONNECT_X, req),
     status: (): Promise<ComposioStatusResult> => ipcRenderer.invoke(IPC.COMPOSIO_STATUS),
+  },
+  search: {
+    workspace: (rootPath: string, opts: SearchOptions): Promise<SearchResult> =>
+      ipcRenderer.invoke(IPC.WORKSPACE_SEARCH, rootPath, opts),
+  },
+  scm: {
+    status: (rootPath: string): Promise<GitStatusResult> =>
+      ipcRenderer.invoke(IPC.SCM_STATUS, rootPath),
+    diff: (rootPath: string, path: string, staged = false): Promise<GitDiffResult> =>
+      ipcRenderer.invoke(IPC.SCM_DIFF, rootPath, path, staged),
+    stage: (rootPath: string, args: GitStageArgs): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC.SCM_STAGE, rootPath, args),
+    commit: (rootPath: string, args: GitCommitArgs): Promise<GitCommitResult> =>
+      ipcRenderer.invoke(IPC.SCM_COMMIT, rootPath, args),
+    run: (rootPath: string, cmd: GitRunCommand): Promise<GitRunResult> =>
+      ipcRenderer.invoke(IPC.SCM_RUN, rootPath, cmd),
   },
 };
 

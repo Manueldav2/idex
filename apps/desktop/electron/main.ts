@@ -20,6 +20,8 @@ import { keychain } from "./keychain.js";
 import { workspace } from "./workspace.js";
 import { launchExternalAgent } from "./external-agent.js";
 import { connectX, readStatus } from "./composio-oauth.js";
+import { searchWorkspace } from "./workspace-search.js";
+import { gitStatus, gitDiff, gitStage, gitCommit, gitRun } from "./scm.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !!process.env["VITE_DEV_SERVER_URL"];
@@ -114,6 +116,17 @@ function registerIpc() {
     connectX(req ?? {}),
   );
   ipcMain.handle(IPC.COMPOSIO_STATUS, async () => readStatus());
+
+  ipcMain.handle(IPC.WORKSPACE_SEARCH, async (_, rootPath: string, opts) =>
+    searchWorkspace(rootPath, opts),
+  );
+  ipcMain.handle(IPC.SCM_STATUS, async (_, rootPath: string) => gitStatus(rootPath));
+  ipcMain.handle(IPC.SCM_DIFF, async (_, rootPath: string, rel: string, staged: boolean) =>
+    gitDiff(rootPath, rel, staged),
+  );
+  ipcMain.handle(IPC.SCM_STAGE, async (_, rootPath: string, args) => gitStage(rootPath, args));
+  ipcMain.handle(IPC.SCM_COMMIT, async (_, rootPath: string, args) => gitCommit(rootPath, args));
+  ipcMain.handle(IPC.SCM_RUN, async (_, rootPath: string, cmd) => gitRun(rootPath, cmd));
 }
 
 /**

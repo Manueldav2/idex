@@ -10,6 +10,15 @@ import type {
   ComposioConnectXRequest,
   ComposioConnectXResult,
   ComposioStatusResult,
+  SearchOptions,
+  SearchResult,
+  GitStatusResult,
+  GitDiffResult,
+  GitStageArgs,
+  GitCommitArgs,
+  GitCommitResult,
+  GitRunCommand,
+  GitRunResult,
   FileNode,
   KeychainKey,
   ProjectCreateFolderArgs,
@@ -54,6 +63,16 @@ declare global {
       composio: {
         connectX: (req?: ComposioConnectXRequest) => Promise<ComposioConnectXResult>;
         status: () => Promise<ComposioStatusResult>;
+      };
+      search: {
+        workspace: (rootPath: string, opts: SearchOptions) => Promise<SearchResult>;
+      };
+      scm: {
+        status: (rootPath: string) => Promise<GitStatusResult>;
+        diff: (rootPath: string, path: string, staged?: boolean) => Promise<GitDiffResult>;
+        stage: (rootPath: string, args: GitStageArgs) => Promise<{ ok: boolean; error?: string }>;
+        commit: (rootPath: string, args: GitCommitArgs) => Promise<GitCommitResult>;
+        run: (rootPath: string, cmd: GitRunCommand) => Promise<GitRunResult>;
       };
     };
   }

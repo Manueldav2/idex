@@ -46,7 +46,21 @@ interface WorkspaceStore {
   /** Refresh the tree from disk (no picker). */
   refreshTree: () => Promise<void>;
 
-  openFile: (path: string) => Promise<void>;
+  /**
+   * Open a file in the editor. `path` may be either an absolute path or a
+   * workspace-relative path (resolved against `workspacePath`). Pass
+   * `opts.revealLine` to scroll the editor to that 1-based line after
+   * the file mounts — the Editor component reads `pendingReveal` to do
+   * the actual scroll, so search results / goto-line work.
+   */
+  openFile: (path: string, opts?: { revealLine?: number }) => Promise<void>;
+  /**
+   * 1-based line number the editor should scroll to once the active
+   * file mounts. Set by openFile + cleared by the editor after it
+   * reveals.
+   */
+  pendingReveal: { path: string; line: number } | null;
+  clearPendingReveal: () => void;
   closeFile: (path: string) => void;
   setActive: (path: string) => void;
   updateContent: (path: string, content: string) => void;
@@ -118,6 +132,10 @@ export const useWorkspace = create<WorkspaceStore>((set, get) => ({
   activePath: null,
   loadingTree: false,
   treeError: null,
+  pendingReveal: null,
+  clearPendingReveal() {
+    set({ pendingReveal: null });
+  },
 
   async openWorkspace() {
     const result = await ipc().workspace.open();
@@ -155,7 +173,18 @@ export const useWorkspace = create<WorkspaceStore>((set, get) => ({
     await get().loadWorkspace(root);
   },
 
-  async openFile(path) {
+  async openFile(path, opts) {
+    // Resolve workspace-relative paths against the current root. Search
+    // results and outline navigation always pass relative; the file
+    // tree passes absolute. Both should work without callers caring.
+    const root = get().workspacePath;
+    const resolved =
+      path.startsWith("/") || /^[A-Za-z]:\\/.test(path)
+        ? path
+        : root
+          ? `${root}/${path}`.replace(/\\/g, "/")
+          : path;
+
     // Opening a file is a commitment to look at it, so snap the cockpit into
     // Editor mode. When the Sidebar is visible in Agent mode this is what
     // "click a file → see it in the editor" expects; when already in Editor
@@ -166,26 +195,30 @@ export const useWorkspace = create<WorkspaceStore>((set, get) => ({
       void settings.patch({ mode: "editor" });
     }
 
-    const existing = get().openFiles.find((f) => f.path === path);
+    if (opts?.revealLine && opts.revealLine > 0) {
+      set({ pendingReveal: { path: resolved, line: opts.revealLine } });
+    }
+
+    const existing = get().openFiles.find((f) => f.path === resolved);
     if (existing) {
-      set({ activePath: path });
+      set({ activePath: resolved });
       return;
     }
-    const res = await ipc().workspace.readFile(path);
+    const res = await ipc().workspace.readFile(resolved);
     if (!res.ok || typeof res.content !== "string") {
       console.error("[workspace] readFile failed", path, res.error);
       return;
     }
     const file: OpenFile = {
-      path,
+      path: resolved,
       baseline: res.content,
       content: res.content,
       dirty: false,
-      modelLanguage: languageFromPath(path),
+      modelLanguage: languageFromPath(resolved),
     };
     set((s) => ({
       openFiles: [...s.openFiles, file],
-      activePath: path,
+      activePath: resolved,
     }));
   },
 

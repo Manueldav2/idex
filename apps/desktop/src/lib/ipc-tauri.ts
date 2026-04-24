@@ -113,6 +113,30 @@ export async function installTauriBridge(): Promise<void> {
       }),
       status: async () => ({ ok: true, status: "UNKNOWN" as const }),
     },
+    search: {
+      workspace: async () => ({
+        ok: false,
+        files: [],
+        totalMatches: 0,
+        truncated: false,
+        elapsedMs: 0,
+        error: "Workspace search is not yet wired on the Tauri backend.",
+      }),
+    },
+    scm: {
+      status: async () => ({
+        ok: false,
+        branch: null,
+        ahead: 0,
+        behind: 0,
+        files: [],
+        error: "Source control is not yet wired on the Tauri backend.",
+      }),
+      diff: async () => ({ ok: false, diff: "", error: "Tauri SCM TODO" }),
+      stage: async () => ({ ok: false, error: "Tauri SCM TODO" }),
+      commit: async () => ({ ok: false, error: "Tauri SCM TODO" }),
+      run: async () => ({ ok: false, error: "Tauri SCM TODO" }),
+    },
   };
 
   (window as Window & typeof globalThis).idex = idex;

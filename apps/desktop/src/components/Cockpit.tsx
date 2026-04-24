@@ -116,6 +116,45 @@ export function Cockpit() {
         return;
       }
 
+      // VS Code activity-bar shortcuts. Each one snaps the user into
+      // editor mode (so the sidebar exists) and switches the sidebar
+      // view to the requested pane. These are the same chords Cursor /
+      // VS Code ships, and the keys most users have in muscle memory.
+      if (e.shiftKey && (e.key === "F" || e.code === "KeyF")) {
+        e.preventDefault();
+        if (mode !== "editor") setMode("editor");
+        useEditorUI.getState().setSidebarView("search");
+        return;
+      }
+      if (e.shiftKey && (e.key === "G" || e.code === "KeyG")) {
+        e.preventDefault();
+        if (mode !== "editor") setMode("editor");
+        useEditorUI.getState().setSidebarView("scm");
+        return;
+      }
+      if (e.shiftKey && (e.key === "E" || e.code === "KeyE")) {
+        // Note: ⌘E (no shift) toggles modes above. ⌘⇧E specifically
+        // focuses the file tree like VS Code's "Show Explorer".
+        e.preventDefault();
+        if (mode !== "editor") setMode("editor");
+        useEditorUI.getState().setSidebarView("files");
+        return;
+      }
+      // ⌘B → toggle sidebar collapse (VS Code "View: Toggle Side Bar").
+      if (e.key === "b" || e.key === "B") {
+        e.preventDefault();
+        if (mode !== "editor") setMode("editor");
+        useEditorUI.getState().toggleSidebar();
+        return;
+      }
+      // ⌘⇧P → command palette. Cursor maps both ⌘K and ⌘⇧P to the
+      // same surface; we already handle ⌘K above.
+      if (e.shiftKey && (e.key === "P" || e.code === "KeyP")) {
+        e.preventDefault();
+        setPaletteOpen(true);
+        return;
+      }
+
       // ⌘` → toggle the integrated terminal. Matches Cursor / VSCode.
       // Also snaps into editor mode so the terminal has somewhere to
       // appear (otherwise it'd open "in agent mode" which is confusing).

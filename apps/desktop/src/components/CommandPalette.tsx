@@ -3,18 +3,25 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
   File as FileIcon,
+  Files,
   Folder,
+  GitBranch,
+  GitCommit,
   Play,
   Plus,
   Search,
+  Settings as SettingsIcon,
   SplitSquareVertical,
   TerminalSquare,
+  X as XIcon,
 } from "lucide-react";
 import { useProjects } from "@/store/projects";
 import { useWorkspace } from "@/store/workspace";
 import { useSettings } from "@/store/settings";
 import { useAgent } from "@/store/agent";
 import { useEditorUI } from "@/store/editor-ui";
+import { useScm } from "@/store/scm";
+import { useFeed } from "@/store/feed";
 import type { CockpitMode } from "@idex/types";
 import { cn } from "@/lib/cn";
 
@@ -111,6 +118,139 @@ export function CommandPalette({ open, onClose }: Props) {
           void patchConfig({ mode: "editor" });
         }
       },
+    });
+
+    // VS Code activity-bar parity. Each one snaps to editor mode and
+    // sets the sidebar view, mirroring what the keyboard chord does.
+    out.push({
+      id: "action:files",
+      label: "Show explorer",
+      sub: "Files panel in the editor sidebar",
+      hint: "⌘⇧E",
+      section: "action",
+      icon: <Files className="size-4" />,
+      run: () => {
+        if (mode !== "editor") void patchConfig({ mode: "editor" });
+        useEditorUI.getState().setSidebarView("files");
+      },
+    });
+    out.push({
+      id: "action:search",
+      label: "Search workspace",
+      sub: "ripgrep across the open folder",
+      hint: "⌘⇧F",
+      section: "action",
+      icon: <Search className="size-4" />,
+      run: () => {
+        if (mode !== "editor") void patchConfig({ mode: "editor" });
+        useEditorUI.getState().setSidebarView("search");
+      },
+    });
+    out.push({
+      id: "action:scm",
+      label: "Source control",
+      sub: "Git status, stage, commit, push",
+      hint: "⌘⇧G",
+      section: "action",
+      icon: <GitBranch className="size-4" />,
+      run: () => {
+        if (mode !== "editor") void patchConfig({ mode: "editor" });
+        useEditorUI.getState().setSidebarView("scm");
+      },
+    });
+    out.push({
+      id: "action:scm-stage-all",
+      label: "Git: stage all changes",
+      sub: "git add -A",
+      section: "action",
+      icon: <Plus className="size-4" />,
+      run: async () => {
+        const scm = useScm.getState();
+        const all = [
+          ...scm.groups.changes.map((f) => f.path),
+          ...scm.groups.untracked.map((f) => f.path),
+        ];
+        if (all.length > 0) await scm.stage(all);
+      },
+    });
+    out.push({
+      id: "action:scm-commit",
+      label: "Git: commit staged",
+      sub: "Commit with the message in the SCM panel",
+      hint: "⌘↵ in panel",
+      section: "action",
+      icon: <GitCommit className="size-4" />,
+      run: async () => {
+        if (mode !== "editor") void patchConfig({ mode: "editor" });
+        useEditorUI.getState().setSidebarView("scm");
+      },
+    });
+    out.push({
+      id: "action:scm-pull",
+      label: "Git: pull",
+      section: "action",
+      icon: <GitBranch className="size-4" />,
+      run: () => void useScm.getState().pull(),
+    });
+    out.push({
+      id: "action:scm-push",
+      label: "Git: push",
+      section: "action",
+      icon: <GitBranch className="size-4" />,
+      run: () => void useScm.getState().push(),
+    });
+
+    // Sidebar + feed toggles.
+    out.push({
+      id: "action:sidebar-toggle",
+      label: "Toggle sidebar",
+      sub: "Show/hide the left activity sidebar",
+      hint: "⌘B",
+      section: "action",
+      icon: <SplitSquareVertical className="size-4" />,
+      run: () => {
+        if (mode !== "editor") void patchConfig({ mode: "editor" });
+        useEditorUI.getState().toggleSidebar();
+      },
+    });
+    out.push({
+      id: "action:feed-toggle",
+      label: "Toggle feed",
+      sub: "Expand or collapse the curated feed",
+      section: "action",
+      icon: <XIcon className="size-4" />,
+      run: () => {
+        const feed = useFeed.getState();
+        feed.setState(feed.state === "expanded" ? "peek" : "expanded");
+      },
+    });
+    out.push({
+      id: "action:feed-refresh",
+      label: "Refresh feed",
+      sub: "Re-run the curator now",
+      section: "action",
+      icon: <Search className="size-4" />,
+      run: () => useFeed.getState().refresh(),
+    });
+
+    // Settings + workspace.
+    out.push({
+      id: "action:open-folder",
+      label: "Open folder…",
+      sub: "Pick a workspace from the OS dialog",
+      hint: "⌘⇧O",
+      section: "action",
+      icon: <Folder className="size-4" />,
+      run: () => void useWorkspace.getState().openWorkspace(),
+    });
+    out.push({
+      id: "action:settings",
+      label: "Re-run setup",
+      sub: "Switch agent, change keys, privacy",
+      hint: "⌘,",
+      section: "action",
+      icon: <SettingsIcon className="size-4" />,
+      run: () => void patchConfig({ privacyDisclosureAccepted: false }),
     });
 
     // Open files — jumping between buffers without leaving keyboard.

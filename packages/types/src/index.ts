@@ -103,6 +103,20 @@ export const IPC = {
    */
   AGENT_LAUNCH_EXTERNAL: "agent:launch-external",
   SESSION_LIST: "session:list",
+  /** Run ripgrep across the active workspace and stream matches back. */
+  WORKSPACE_SEARCH: "workspace:search",
+  /** Cancel an in-flight workspace search by id. */
+  WORKSPACE_SEARCH_CANCEL: "workspace:search-cancel",
+  /** Read git status for the active workspace. */
+  SCM_STATUS: "scm:status",
+  /** Read the unified diff for one file. */
+  SCM_DIFF: "scm:diff",
+  /** Stage / unstage files. */
+  SCM_STAGE: "scm:stage",
+  /** Create a commit on the current branch. */
+  SCM_COMMIT: "scm:commit",
+  /** Run a generic git command (pull, push) — limited allowlist. */
+  SCM_RUN: "scm:run",
   CONFIG_GET: "config:get",
   CONFIG_SET: "config:set",
   KEYCHAIN_GET: "keychain:get",
@@ -339,6 +353,120 @@ export interface ComposioConnectXResult {
   /** Active connected account id on success. */
   connectedAccountId?: string;
   /** Error label ("missing_api_key" | "timeout" | "failed" | "cancelled" | string). */
+  error?: string;
+}
+
+/* ────────────────────────────────────────── *
+ * Workspace search                            *
+ * ────────────────────────────────────────── */
+
+export interface SearchOptions {
+  query: string;
+  /** Match as a regex if true; literal substring otherwise. */
+  isRegex?: boolean;
+  /** Case-sensitive when true; case-insensitive otherwise. */
+  caseSensitive?: boolean;
+  /** Match whole words only. */
+  wholeWord?: boolean;
+  /** Globs to include, e.g. ["**\/*.ts"]. */
+  include?: string[];
+  /** Globs to exclude, e.g. ["**\/node_modules/**"]. */
+  exclude?: string[];
+  /** Cap total matches across all files. */
+  maxMatches?: number;
+}
+
+export interface SearchMatch {
+  path: string;
+  /** 1-based line number. */
+  line: number;
+  /** 0-based column where the match starts. */
+  column: number;
+  /** Full text of the matching line, trimmed if very long. */
+  text: string;
+  /** Length of the matched substring within `text`, for highlighting. */
+  matchLength: number;
+}
+
+export interface SearchFileGroup {
+  path: string;
+  matches: SearchMatch[];
+}
+
+export interface SearchResult {
+  ok: boolean;
+  /** Match groups by file path. */
+  files: SearchFileGroup[];
+  /** Total match count (sum of all groups). */
+  totalMatches: number;
+  /** True if the result was truncated by maxMatches. */
+  truncated: boolean;
+  /** Wall-clock ms ripgrep ran for. */
+  elapsedMs: number;
+  error?: string;
+}
+
+/* ────────────────────────────────────────── *
+ * Source control (git)                       *
+ * ────────────────────────────────────────── */
+
+export interface GitFileStatus {
+  /** Workspace-relative path. */
+  path: string;
+  /** Index status code (M, A, D, R, ?, etc.). */
+  index: string;
+  /** Working tree status code. */
+  workingTree: string;
+  /** True when the change is staged. */
+  staged: boolean;
+}
+
+export interface GitStatusResult {
+  ok: boolean;
+  /** Branch name, or null if detached. */
+  branch: string | null;
+  /** Commits ahead of upstream. */
+  ahead: number;
+  /** Commits behind upstream. */
+  behind: number;
+  /** All changed files (staged + unstaged + untracked). */
+  files: GitFileStatus[];
+  error?: string;
+}
+
+export interface GitDiffResult {
+  ok: boolean;
+  /** Unified diff body (-U3). Empty when nothing to diff. */
+  diff: string;
+  error?: string;
+}
+
+export interface GitStageArgs {
+  /** File paths to stage / unstage. Workspace-relative. */
+  paths: string[];
+  /** True to stage; false to unstage. */
+  stage: boolean;
+}
+
+export interface GitCommitArgs {
+  message: string;
+  /** When true, stage all changes before committing (`git add -A`). */
+  stageAll?: boolean;
+}
+
+export interface GitCommitResult {
+  ok: boolean;
+  /** Resulting commit sha on success. */
+  sha?: string;
+  error?: string;
+}
+
+export type GitRunCommand = "pull" | "push" | "fetch";
+
+export interface GitRunResult {
+  ok: boolean;
+  stdout?: string;
+  stderr?: string;
   error?: string;
 }
 

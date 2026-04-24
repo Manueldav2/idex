@@ -114,6 +114,8 @@ interface Props {
 export function Editor({ file }: Props) {
   const updateContent = useWorkspace((s) => s.updateContent);
   const save = useWorkspace((s) => s.save);
+  const pendingReveal = useWorkspace((s) => s.pendingReveal);
+  const clearPendingReveal = useWorkspace((s) => s.clearPendingReveal);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   // Safety net: if Monaco has not mounted after 3 seconds, swap to a plain
@@ -154,6 +156,23 @@ export function Editor({ file }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [file.path, save]);
+
+  // Honor a pending search/goto-line reveal once Monaco is mounted and the
+  // active file is the requested one. revealLineInCenter mirrors VS Code's
+  // ⌘P/⌘⇧F behavior — the matched line lands centered with the cursor on
+  // it. Single-shot: we clear the reveal after handling.
+  useEffect(() => {
+    if (!mounted) return;
+    if (!pendingReveal) return;
+    if (pendingReveal.path !== file.path) return;
+    const editor = editorRef.current;
+    if (!editor) return;
+    const line = pendingReveal.line;
+    editor.revealLineInCenter(line);
+    editor.setPosition({ lineNumber: line, column: 1 });
+    editor.focus();
+    clearPendingReveal();
+  }, [pendingReveal, mounted, file.path, clearPendingReveal]);
 
   if (fallback) {
     return (

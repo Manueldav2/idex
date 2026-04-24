@@ -2,10 +2,15 @@ import { useEffect } from "react";
 import { useWorkspace } from "@/store/workspace";
 import { useSettings } from "@/store/settings";
 import { useEditorUI } from "@/store/editor-ui";
+import { useScm } from "@/store/scm";
 import { FileTree } from "./FileTree";
 import { EditorTabs } from "./EditorTabs";
 import { Editor } from "./Editor";
 import { TerminalPanel } from "./TerminalPanel";
+import { ActivityBar } from "./ActivityBar";
+import { SearchPanel } from "./SearchPanel";
+import { ScmPanel } from "./ScmPanel";
+import { DiffView } from "./DiffView";
 import { FolderPlus, TerminalSquare } from "lucide-react";
 
 export function EditorMode() {
@@ -18,6 +23,11 @@ export function EditorMode() {
   const persistedPath = useSettings((s) => s.config.workspacePath);
   const terminalOpen = useEditorUI((s) => s.terminalOpen);
   const setTerminalOpen = useEditorUI((s) => s.setTerminalOpen);
+  const sidebarView = useEditorUI((s) => s.sidebarView);
+  const sidebarCollapsed = useEditorUI((s) => s.sidebarCollapsed);
+  const scmSelectedPath = useScm((s) => s.selectedPath);
+  const scmDiff = useScm((s) => s.diff);
+  const scmDiffLoading = useScm((s) => s.diffLoading);
 
   // When entering editor mode, if the config has a workspace path but we
   // haven't loaded a tree yet, rehydrate it.
@@ -28,19 +38,30 @@ export function EditorMode() {
   }, [persistedPath, workspacePath, loadWorkspace]);
 
   const activeFile = activePath ? openFiles.find((f) => f.path === activePath) ?? null : null;
+  // SCM diff takes precedence over the active file when an SCM file row
+  // is selected — same UX as VS Code where clicking a file in the SCM
+  // panel opens its diff in the editor pane.
+  const showDiff = sidebarView === "scm" && !!scmSelectedPath;
 
   return (
     <div className="flex h-full w-full min-h-0">
-      <aside
-        style={{ width: "240px" }}
-        className="flex h-full flex-col bg-ink-1 border-r border-line shrink-0 min-w-0"
-      >
-        <FileTree tree={tree} />
-      </aside>
+      <ActivityBar />
+      {!sidebarCollapsed && (
+        <aside
+          style={{ width: "260px" }}
+          className="flex h-full flex-col bg-ink-1 border-r border-line shrink-0 min-w-0"
+        >
+          {sidebarView === "files" && <FileTree tree={tree} />}
+          {sidebarView === "search" && <SearchPanel />}
+          {sidebarView === "scm" && <ScmPanel />}
+        </aside>
+      )}
       <div className="relative flex h-full flex-1 flex-col min-w-0 min-h-0 bg-ink-0">
         <div className="flex-1 min-h-0 flex flex-col">
           <EditorTabs />
-          {activeFile ? (
+          {showDiff ? (
+            <DiffView path={scmSelectedPath ?? ""} diff={scmDiff} loading={scmDiffLoading} />
+          ) : activeFile ? (
             <Editor file={activeFile} />
           ) : (
             <EmptyEditorState hasWorkspace={!!tree} onOpenFolder={() => void openWorkspace()} />

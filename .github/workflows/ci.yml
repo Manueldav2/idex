@@ -26,6 +26,10 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
 
+      - name: Setup Rust
+        if: runner.os == 'macOS'
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -33,9 +37,19 @@ jobs:
         run: pnpm -r typecheck
 
       - name: Build packages
-        run: pnpm -r --filter './packages/*' build || true
+        run: pnpm -r --filter './packages/*' build
 
-      - name: Build apps
+      - name: Build landing
+        run: pnpm --filter @idex/landing build
+
+      - name: Build desktop renderer
+        run: pnpm --filter @idex/desktop build:renderer
+
+      - name: Check Tauri backend
+        if: runner.os == 'macOS'
+        run: pnpm tauri:check
+
+      - name: Build Tauri desktop bundle
+        if: runner.os == 'macOS'
         run: |
-          pnpm --filter @idex/landing build
           pnpm --filter @idex/desktop build

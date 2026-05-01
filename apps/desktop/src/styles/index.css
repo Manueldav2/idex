@@ -1,10 +1,8 @@
 /*
-  Font stack — Geist for UI chrome (Vercel's typeface, premium and
-  distinctive without the "AI-generic Inter" feel), Fraunces for editorial
-  display moments, Geist Mono for code. All via Google Fonts with `display=swap`
-  so text renders immediately with the native fallback while loading.
+  Cursor inherits VS Code's native desktop feel, so the shell uses platform
+  UI fonts instead of a branded display face. The monospace stack stays
+  explicit for xterm/Monaco cell math.
 */
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap");
 
 /*
   JetBrains Mono Nerd Font — loaded from jsdelivr for Claude Code's PUA
@@ -55,35 +53,27 @@
 
 @theme {
   /*
-    Ink palette. Slightly warmer neutrals (~+1° hue toward blue) so the
-    chrome doesn't read as cold/gray. Borders are softer — the old
-    #22252f was hard-edged against ink-1; we pull it closer to the
-    surface so dividers feel like rests, not walls.
+    Cursor/VS Code workbench palette. The stable visual grammar is a neutral
+    dark workbench, slightly lifted sidebars/tabs, low-contrast separators,
+    and blue selection.
   */
-  /*
-    ink-0 matches the xterm terminal background exactly (#0B0C10) so
-    the platform chrome and the embedded terminal read as one surface —
-    no visible seam between the cockpit and the agent pane. ink-1 is
-    collapsed to the same value; ink-2 stays a single step up so hover
-    states (tab hover, palette hover) still have a subtle lift.
-  */
-  --color-ink-0: #0b0c10;
-  --color-ink-1: #0b0c10;
-  --color-ink-2: #14161c;
-  --color-line: #1d2029;
-  --color-line-soft: rgba(255, 255, 255, 0.04);
-  --color-text-primary: #eef0f3;
-  --color-text-secondary: #8a91a2;
-  --color-text-tertiary: #5d6474;
-  --color-accent: #3d7bff;
-  --color-accent-soft: rgba(61, 123, 255, 0.10);
-  --color-accent-glow: rgba(61, 123, 255, 0.22);
-  --color-error: #ff6b6b;
+  --color-ink-0: #1e1e1e;
+  --color-ink-1: #181818;
+  --color-ink-2: #252526;
+  --color-line: #2b2b2b;
+  --color-line-soft: #3c3c3c;
+  --color-text-primary: #cccccc;
+  --color-text-secondary: #9d9d9d;
+  --color-text-tertiary: #6f6f6f;
+  --color-accent: #007acc;
+  --color-accent-soft: rgba(0, 122, 204, 0.16);
+  --color-accent-glow: rgba(0, 122, 204, 0.28);
+  --color-error: #f48771;
 
-  --font-display: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Fraunces", "Iowan Old Style", "Apple Garamond", Georgia, serif;
-  --font-mono: "Geist Mono", ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
 
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -93,8 +83,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(61, 123, 255, 0); }
-  50% { box-shadow: 0 0 24px 4px rgba(61, 123, 255, 0.25); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 122, 204, 0); }
+  50% { box-shadow: 0 0 24px 4px rgba(0, 122, 204, 0.25); }
 }
 
 @keyframes shimmer {
@@ -122,9 +112,9 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(61, 123, 255, 0.06) 40%,
-    rgba(61, 123, 255, 0.10) 50%,
-    rgba(61, 123, 255, 0.06) 60%,
+    rgba(0, 122, 204, 0.06) 40%,
+    rgba(0, 122, 204, 0.10) 50%,
+    rgba(0, 122, 204, 0.06) 60%,
     transparent 100%
   );
   animation: card-shimmer-sweep 1.2s ease-in-out infinite;
@@ -134,8 +124,8 @@
 /* Soft pulsing halo on a session tab's state dot while the session is
    generating. Animates a box-shadow opacity — tasteful, non-bouncy. */
 @keyframes dot-halo-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(61, 123, 255, 0.0); }
-  50%      { box-shadow: 0 0 0 3px rgba(61, 123, 255, 0.35); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 122, 204, 0.0); }
+  50%      { box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.35); }
 }
 .dot-halo-pulse {
   animation: dot-halo-pulse 1.6s ease-in-out infinite;
@@ -204,30 +194,23 @@ body,
   background: var(--color-ink-0);
   color: var(--color-text-primary);
   font-family: var(--font-body);
-  font-size: 13.5px;
-  line-height: 1.5;
-  letter-spacing: -0.003em;
+  font-size: 13px;
+  line-height: 1.45;
+  letter-spacing: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-variant-numeric: tabular-nums;
-  /*
-    Geist ships with stylistic set features that tighten the shapes
-    ("ss01" cleaner 'a', "ss02" single-story 'g', "cv11" straight R).
-    Enabling them turns Geist from "generic sans" into something with
-    actual voice — the move Vercel's own marketing site makes.
-  */
-  font-feature-settings: "ss01", "ss02", "cv11";
+  font-feature-settings: normal;
 }
 
 /*
-  Serif accent utility — Fraunces with optical-size tuned for display.
-  Use for brand flourishes (IDEX wordmark, section callouts) where a
-  single serif line can break up the technical chrome without drowning it.
+  The old IDEX shell used a serif logo flourish. Cursor's chrome is flatter
+  and native, so this utility now resolves to the same platform stack.
 */
 .serif {
   font-family: var(--font-serif);
   font-optical-sizing: auto;
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
 }
 
 /* Custom scrollbar (subtle) */
@@ -243,10 +226,10 @@ body,
 
 /* Glassmorphism utility (chrome only) */
 .glass {
-  background: rgba(19, 21, 27, 0.65);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(24, 24, 24, 0.92);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  border: 0;
 }
 
 /* Button press feedback (Emil) */

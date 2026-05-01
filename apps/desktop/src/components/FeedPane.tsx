@@ -3,12 +3,25 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useFeed } from "@/store/feed";
 import { useSettings } from "@/store/settings";
 import { Card } from "./Card";
-import { X as XIcon } from "lucide-react";
+import {
+  Bell,
+  Bookmark,
+  CircleEllipsis,
+  Home,
+  Mail,
+  Search,
+  User,
+  Users,
+  X as CloseIcon,
+} from "lucide-react";
 
 /** X divider color — used in header/divider lines to match the card chrome. */
+const X_BG = "#000000";
 const X_DIVIDER = "#2f3336";
 const X_MUTED = "#71767b";
 const X_TEXT = "#e7e9ea";
+const X_PANEL = "#16181c";
+const X_BLUE = "#1d9bf0";
 
 export function FeedPane() {
   const config = useSettings((s) => s.config);
@@ -50,11 +63,15 @@ export function FeedPane() {
 
   if (!config.feedEnabled) {
     return (
-      <aside style={{ width: "40px", flexShrink: 0 }} className="bg-ink-0 border-l border-line flex items-center justify-center">
+      <aside
+        style={{ width: "40px", flexShrink: 0, background: X_BG, borderLeft: `1px solid ${X_DIVIDER}` }}
+        className="flex items-center justify-center"
+      >
         <button
           onClick={() => useSettings.getState().patch({ feedEnabled: true })}
-          className="text-text-tertiary hover:text-text-primary -rotate-90 origin-center text-[12px] tracking-[-0.005em] whitespace-nowrap transition-colors"
+          className="hover:text-white -rotate-90 origin-center text-[12px] tracking-[-0.005em] whitespace-nowrap transition-colors"
           title="Enable feed"
+          style={{ color: X_MUTED }}
         >
           Enable feed
         </button>
@@ -101,8 +118,9 @@ export function FeedPane() {
         right: isExpanded ? 0 : undefined,
         bottom: isExpanded ? 0 : undefined,
         zIndex: isExpanded ? 40 : "auto",
+        background: X_BG,
       }}
-      className="flex flex-col bg-ink-0 overflow-hidden"
+      className="flex flex-col overflow-hidden"
       onPointerDown={touch}
       onWheel={touch}
     >
@@ -132,77 +150,75 @@ export function FeedPane() {
             transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
             className="flex flex-col h-full"
           >
-            {/* Sticky glass header — X style with For you / Following tabs */}
-            <header
-              className="sticky top-0 z-10 glass"
-              style={{
-                borderBottom: `1px solid ${X_DIVIDER}`,
-                background: "rgba(0,0,0,0.65)",
-              }}
-            >
-              <div className="flex items-stretch h-[53px]">
-                <XTab
-                  label="For you"
-                  active={activeTab === "forYou"}
-                  onClick={() => setActiveTab("forYou")}
-                />
-                <XTab
-                  label="Following"
-                  active={activeTab === "following"}
-                  onClick={() => setActiveTab("following")}
-                />
+            <div className="mx-auto flex h-full w-full max-w-[1265px] justify-center">
+              <XNav onCollapse={() => setState("peek")} />
 
-                {/* Right side — curator meta + collapse button */}
-                <div className="ml-auto flex items-center gap-3 pr-3">
-                  <SourceMix mix={sourceMix} total={cards.length} />
-
-                  {isLoading && (
-                    <span
-                      className="text-[11px] tabular-nums animate-pulse"
-                      style={{ color: X_MUTED }}
-                    >
-                      curating
-                    </span>
-                  )}
-
-                  <button
-                    onClick={() => setState("peek")}
-                    className="press-feedback x-header-btn size-8 rounded-full flex items-center justify-center transition-colors"
-                    title="Collapse"
-                    aria-label="Collapse feed"
-                    style={{ color: X_MUTED }}
-                  >
-                    <XIcon className="size-[18px]" strokeWidth={2} />
-                  </button>
-                </div>
-              </div>
-            </header>
-
-            {cards.length === 0 ? (
-              <EmptyFeedState isLoading={isLoading} />
-            ) : (
-              <div ref={scrollerRef} className="flex-1 overflow-y-auto">
-                {cards.map((c, i) => (
-                  <motion.div
-                    key={c.id}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      delay: i * 0.04,
-                      duration: 0.35,
-                      ease: [0.23, 1, 0.32, 1],
-                    }}
-                    onClick={() => setFocusedIdx(i)}
-                  >
-                    <Card
-                      card={c}
-                      focused={i === focusedIdx}
-                      shimmer={isLoading && c.source === "starter"}
+              <section
+                className="flex h-full w-full max-w-[600px] flex-col md:w-[600px] md:max-w-none"
+                style={{
+                  borderLeft: `1px solid ${X_DIVIDER}`,
+                  borderRight: `1px solid ${X_DIVIDER}`,
+                  background: X_BG,
+                }}
+              >
+                {/* Sticky X home timeline header. */}
+                <header
+                  className="sticky top-0 z-10"
+                  style={{
+                    borderBottom: `1px solid ${X_DIVIDER}`,
+                    background: "rgba(0,0,0,0.65)",
+                    WebkitBackdropFilter: "blur(12px)",
+                    backdropFilter: "blur(12px)",
+                  }}
+                >
+                  <div className="flex items-stretch h-[53px]">
+                    <XTab
+                      label="For you"
+                      active={activeTab === "forYou"}
+                      onClick={() => setActiveTab("forYou")}
                     />
-                  </motion.div>
-                ))}
-              </div>
-            )}
+                    <XTab
+                      label="Following"
+                      active={activeTab === "following"}
+                      onClick={() => setActiveTab("following")}
+                    />
+                  </div>
+                </header>
+
+                {cards.length === 0 ? (
+                  <EmptyFeedState isLoading={isLoading} />
+                ) : (
+                  <div ref={scrollerRef} className="flex-1 overflow-y-auto">
+                    {cards.map((c, i) => (
+                      <motion.div
+                        key={c.id}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          delay: i * 0.04,
+                          duration: 0.35,
+                          ease: [0.23, 1, 0.32, 1],
+                        }}
+                        onClick={() => setFocusedIdx(i)}
+                      >
+                        <Card
+                          card={c}
+                          focused={i === focusedIdx}
+                          shimmer={isLoading && c.source === "starter"}
+                        />
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <XRightRail
+                isLoading={isLoading}
+                mix={sourceMix}
+                total={cards.length}
+                onCollapse={() => setState("peek")}
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -223,7 +239,7 @@ function XTab({
   return (
     <button
       onClick={onClick}
-      className="x-tab relative flex-1 max-w-[200px] min-w-[100px] flex items-center justify-center transition-colors"
+      className="x-tab relative flex-1 min-w-[100px] flex items-center justify-center transition-colors"
       style={{
         color: active ? X_TEXT : X_MUTED,
       }}
@@ -239,56 +255,11 @@ function XTab({
           className="absolute bottom-0 left-1/2 -translate-x-1/2 h-1 rounded-full"
           style={{
             width: "56px",
-            background: "#1d9bf0",
+            background: X_BLUE,
           }}
         />
       )}
     </button>
-  );
-}
-
-/** Source-origin mix indicator — tiny dots showing HN/reddit/other ratio. */
-function SourceMix({
-  mix,
-  total,
-}: {
-  mix: { hn: number; reddit: number; starter: number; other: number };
-  total: number;
-}) {
-  if (total === 0) return null;
-  return (
-    <div
-      className="flex items-center gap-2 text-[12px] tabular-nums"
-      style={{ color: X_MUTED }}
-      title={`${mix.hn} HN · ${mix.reddit} Reddit · ${mix.starter + mix.other} seed`}
-    >
-      <span>curator</span>
-      <span style={{ color: "#3d7bff" }}>·</span>
-      <div className="flex items-center gap-1">
-        {mix.hn > 0 && (
-          <span
-            className="size-1.5 rounded-full"
-            style={{ background: "#ff6600" }}
-            aria-label={`${mix.hn} from HN`}
-          />
-        )}
-        {mix.reddit > 0 && (
-          <span
-            className="size-1.5 rounded-full"
-            style={{ background: "#ff4500" }}
-            aria-label={`${mix.reddit} from Reddit`}
-          />
-        )}
-        {(mix.starter + mix.other) > 0 && (
-          <span
-            className="size-1.5 rounded-full"
-            style={{ background: "#3d7bff" }}
-            aria-label={`${mix.starter + mix.other} seed`}
-          />
-        )}
-      </div>
-      <span>{total}</span>
-    </div>
   );
 }
 
@@ -310,7 +281,7 @@ function EmptyFeedState({ isLoading }: { isLoading: boolean }) {
         className="flex-1 flex flex-col items-center justify-center gap-3"
         style={{ color: X_MUTED }}
       >
-        <span className="dot-soft-pulse size-2 rounded-full bg-accent" />
+        <span className="dot-soft-pulse size-2 rounded-full" style={{ background: X_BLUE }} />
         <span className="text-[14px]">reading the room...</span>
       </div>
     );
@@ -334,7 +305,7 @@ function EmptyFeedState({ isLoading }: { isLoading: boolean }) {
           className="px-1.5 py-0.5 rounded"
           style={{
             border: `1px solid ${X_DIVIDER}`,
-            background: "#16181c",
+            background: X_PANEL,
             color: X_MUTED,
           }}
         >
@@ -366,7 +337,7 @@ function PeekStrip({ card: _card, onExpand }: { card?: import("@idex/types").Car
   return (
     <button
       onClick={onExpand}
-      className="w-full h-full flex flex-col items-center justify-between py-5 group hover:bg-ink-1/60 transition-colors overflow-hidden"
+      className="w-full h-full flex flex-col items-center justify-between py-5 group hover:bg-white/[0.03] transition-colors overflow-hidden"
       title={topics.length > 0 ? `Reading about: ${topics.slice(0, 3).join(", ")}` : "Open feed"}
     >
       {/* Real X logo — monospace glyph drawn as an SVG so it stays crisp
@@ -378,7 +349,7 @@ function PeekStrip({ card: _card, onExpand }: { card?: import("@idex/types").Car
       >
         <svg
           viewBox="0 0 24 24"
-          className="size-[22px] text-text-primary group-hover:text-accent transition-colors"
+          className="size-[22px] text-[#e7e9ea] group-hover:text-[#1d9bf0] transition-colors"
           fill="currentColor"
           aria-hidden
         >
@@ -398,10 +369,10 @@ function PeekStrip({ card: _card, onExpand }: { card?: import("@idex/types").Car
             maxHeight: "55%",
           }}
         >
-          <span className="text-[11px] font-mono text-text-secondary group-hover:text-text-primary transition-colors tracking-wide whitespace-nowrap truncate">
+          <span className="text-[11px] font-mono text-[#71767b] group-hover:text-[#e7e9ea] transition-colors tracking-wide whitespace-nowrap truncate">
             {primary}
-            {secondary && <span className="text-text-tertiary mx-2">·</span>}
-            {secondary && <span className="text-text-tertiary">{secondary}</span>}
+            {secondary && <span className="text-[#71767b] mx-2">·</span>}
+            {secondary && <span className="text-[#71767b]">{secondary}</span>}
           </span>
         </div>
       )}
@@ -413,14 +384,189 @@ function PeekStrip({ card: _card, onExpand }: { card?: import("@idex/types").Car
       <div className="flex items-center gap-1">
         {isLoading ? (
           <>
-            <span className="dot-soft-pulse size-1 rounded-full bg-accent" style={{ animationDelay: "0ms" }} />
-            <span className="dot-soft-pulse size-1 rounded-full bg-accent" style={{ animationDelay: "180ms" }} />
-            <span className="dot-soft-pulse size-1 rounded-full bg-accent" style={{ animationDelay: "360ms" }} />
+            <span className="dot-soft-pulse size-1 rounded-full" style={{ animationDelay: "0ms", background: X_BLUE }} />
+            <span className="dot-soft-pulse size-1 rounded-full" style={{ animationDelay: "180ms", background: X_BLUE }} />
+            <span className="dot-soft-pulse size-1 rounded-full" style={{ animationDelay: "360ms", background: X_BLUE }} />
           </>
         ) : (
-          <span className="size-1 rounded-full bg-text-tertiary/60" />
+          <span className="size-1 rounded-full" style={{ background: X_MUTED }} />
         )}
       </div>
+    </button>
+  );
+}
+
+function XLogo({ className = "size-7" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" />
+    </svg>
+  );
+}
+
+function XNav({ onCollapse }: { onCollapse: () => void }) {
+  return (
+    <nav className="hidden h-full w-[275px] shrink-0 flex-col px-3 pt-1 text-[20px] text-white lg:flex">
+      <div className="mb-2 flex h-[50px] w-[50px] items-center justify-center rounded-full hover:bg-white/10">
+        <XLogo className="size-[26px]" />
+      </div>
+      <XNavItem icon={<Home className="size-[26px]" />} label="Home" active />
+      <XNavItem icon={<Search className="size-[26px]" />} label="Explore" />
+      <XNavItem icon={<Bell className="size-[26px]" />} label="Notifications" />
+      <XNavItem icon={<Mail className="size-[26px]" />} label="Messages" />
+      <XNavItem icon={<Bookmark className="size-[26px]" />} label="Bookmarks" />
+      <XNavItem icon={<Users className="size-[26px]" />} label="Communities" />
+      <XNavItem icon={<User className="size-[26px]" />} label="Profile" />
+      <XNavItem icon={<CircleEllipsis className="size-[26px]" />} label="More" />
+      <button
+        className="mt-4 h-[52px] w-[90%] rounded-full text-[17px] font-bold text-white transition-colors hover:brightness-95"
+        style={{ background: X_BLUE }}
+      >
+        Post
+      </button>
+      <button
+        onClick={onCollapse}
+        className="mt-auto mb-4 flex w-full items-center gap-3 rounded-full px-3 py-3 text-left text-[15px] transition-colors hover:bg-white/10"
+      >
+        <span className="flex size-10 items-center justify-center rounded-full bg-white/10">
+          <CloseIcon className="size-5" />
+        </span>
+        <span className="flex min-w-0 flex-col">
+          <span className="font-bold leading-5">IDEX</span>
+          <span className="truncate text-[15px] leading-5" style={{ color: X_MUTED }}>
+            Return to app
+          </span>
+        </span>
+      </button>
+    </nav>
+  );
+}
+
+function XNavItem({
+  icon,
+  label,
+  active = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+}) {
+  return (
+    <button className="flex w-fit items-center gap-5 rounded-full px-3 py-3 transition-colors hover:bg-white/10">
+      <span>{icon}</span>
+      <span className={active ? "font-bold" : "font-normal"}>{label}</span>
+    </button>
+  );
+}
+
+function XRightRail({
+  isLoading,
+  mix,
+  total,
+  onCollapse,
+}: {
+  isLoading: boolean;
+  mix: { hn: number; reddit: number; starter: number; other: number };
+  total: number;
+  onCollapse: () => void;
+}) {
+  return (
+    <aside className="hidden h-full w-[390px] shrink-0 px-[30px] py-1 xl:block">
+      <div
+        className="sticky top-0 z-10 flex h-[53px] items-center gap-3"
+        style={{ background: X_BG }}
+      >
+        <div
+          className="flex h-11 flex-1 items-center gap-3 rounded-full px-4"
+          style={{ background: "#202327", color: X_MUTED }}
+        >
+          <Search className="size-[18px]" />
+          <span className="text-[15px]">Search</span>
+        </div>
+        <button
+          onClick={onCollapse}
+          className="x-header-btn flex size-9 shrink-0 items-center justify-center rounded-full transition-colors"
+          title="Collapse feed"
+          aria-label="Collapse feed"
+          style={{ color: X_MUTED }}
+        >
+          <CloseIcon className="size-5" />
+        </button>
+      </div>
+
+      <section
+        className="mt-3 overflow-hidden rounded-2xl"
+        style={{ background: X_PANEL, color: X_TEXT }}
+      >
+        <h2 className="px-4 pb-2 pt-3 text-[20px] font-extrabold leading-6">
+          What&apos;s happening
+        </h2>
+        <TrendRow eyebrow="Live" title="Curated while your agent works" meta={isLoading ? "Updating now" : "Ready"} />
+        <TrendRow eyebrow="Sources" title={`${total} posts in this feed`} meta={`${mix.hn} HN · ${mix.reddit} Reddit · ${mix.starter + mix.other} seed`} />
+        <TrendRow eyebrow="Developer news" title="Context matched to your prompt" meta="Personalized by IDEX" />
+      </section>
+
+      <section
+        className="mt-4 overflow-hidden rounded-2xl"
+        style={{ background: X_PANEL, color: X_TEXT }}
+      >
+        <h2 className="px-4 pb-2 pt-3 text-[20px] font-extrabold leading-6">
+          Who to follow
+        </h2>
+        <FollowRow name="Claude Code" handle="@anthropic" />
+        <FollowRow name="OpenAI Codex" handle="@openai" />
+        <FollowRow name="IDEX" handle="@idex" />
+      </section>
+    </aside>
+  );
+}
+
+function TrendRow({
+  eyebrow,
+  title,
+  meta,
+}: {
+  eyebrow: string;
+  title: string;
+  meta: string;
+}) {
+  return (
+    <button className="block w-full px-4 py-3 text-left transition-colors hover:bg-white/[0.03]">
+      <div className="text-[13px] leading-4" style={{ color: X_MUTED }}>
+        {eyebrow}
+      </div>
+      <div className="mt-0.5 text-[15px] font-bold leading-5" style={{ color: X_TEXT }}>
+        {title}
+      </div>
+      <div className="mt-0.5 text-[13px] leading-4" style={{ color: X_MUTED }}>
+        {meta}
+      </div>
+    </button>
+  );
+}
+
+function FollowRow({ name, handle }: { name: string; handle: string }) {
+  return (
+    <button className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-[15px] font-black text-black">
+        {name[0]}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[15px] font-bold leading-5" style={{ color: X_TEXT }}>
+          {name}
+        </div>
+        <div className="truncate text-[15px] leading-5" style={{ color: X_MUTED }}>
+          {handle}
+        </div>
+      </div>
+      <span className="rounded-full bg-white px-4 py-1.5 text-[14px] font-bold text-black">
+        Follow
+      </span>
     </button>
   );
 }

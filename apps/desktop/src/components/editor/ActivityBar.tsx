@@ -29,7 +29,7 @@ export function ActivityBar() {
 
   return (
     <div
-      style={{ width: 44 }}
+      style={{ width: 48 }}
       className="flex h-full flex-col items-center bg-ink-1 border-r border-line shrink-0 select-none"
     >
       <BarBtn
@@ -86,10 +86,7 @@ function BarBtn({
     >
       {/* Active indicator: 2px accent strip flush left, like VS Code */}
       {active && (
-        <span
-          aria-hidden
-          className="absolute left-0 top-2 bottom-2 w-[2px] rounded-r bg-accent"
-        />
+        <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[2px] bg-accent" />
       )}
       {icon}
       {typeof badge === "number" && badge > 0 && (

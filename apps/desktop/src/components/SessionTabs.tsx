@@ -37,7 +37,7 @@ export function SessionTabs() {
   };
 
   return (
-    <div className="draggable flex items-center gap-0.5 border-b border-line bg-ink-1/80 pl-24 pr-2 h-10 shrink-0 overflow-x-auto no-drag-children">
+    <div className="draggable flex items-stretch gap-0 border-b border-line bg-ink-1 pl-20 pr-2 h-[35px] shrink-0 overflow-x-auto no-drag-children">
       {agentOrder.map((id, idx) => {
         const sd = sessions[id];
         if (!sd) return null;
@@ -46,15 +46,15 @@ export function SessionTabs() {
           <div
             key={id}
             onClick={() => setActive(id)}
-            className={`no-drag group relative flex items-center gap-2 px-2.5 py-1 rounded-md text-[12.5px] cursor-pointer transition-colors shrink-0 tracking-[-0.005em] ${
+            className={`no-drag group relative flex items-center gap-2 border-r border-line px-3 text-[12px] cursor-pointer transition-colors shrink-0 ${
               active
-                ? "bg-ink-2 text-text-primary"
-                : "text-text-secondary hover:text-text-primary hover:bg-ink-2/60"
+                ? "bg-ink-0 text-text-primary"
+                : "text-text-secondary hover:text-text-primary hover:bg-ink-2"
             }`}
           >
             <span className={`size-[5px] rounded-full ${dotClass(sd.session.state)}`} />
             <span className="max-w-[240px] truncate">{sd.session.label}</span>
-            <span className="text-text-tertiary/80 text-[10.5px] font-mono tabular-nums">
+            <span className="text-text-tertiary/80 text-[10px] font-mono tabular-nums">
               {idx + 1}
             </span>
             <button
@@ -62,7 +62,7 @@ export function SessionTabs() {
                 e.stopPropagation();
                 void closeSession(id);
               }}
-              className="tt opacity-0 group-hover:opacity-100 hover:bg-ink-0 rounded p-0.5 transition-opacity"
+              className="tt opacity-0 group-hover:opacity-100 hover:bg-ink-2 rounded-[3px] p-0.5 transition-opacity"
               data-tooltip="close (⌘W)"
               data-tooltip-pos="bottom"
               aria-label="Close session"
@@ -74,7 +74,7 @@ export function SessionTabs() {
       })}
       <button
         onClick={() => void onNew()}
-        className="tt no-drag press-feedback shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[13px] text-text-tertiary hover:text-accent hover:bg-accent-soft transition-colors"
+        className="tt no-drag press-feedback shrink-0 inline-flex items-center gap-1 px-2 text-[13px] text-text-tertiary hover:text-text-primary hover:bg-ink-2 transition-colors"
         data-tooltip="new session (⌘T)"
         data-tooltip-pos="bottom"
         aria-label="New Claude Code session"
@@ -82,8 +82,8 @@ export function SessionTabs() {
         <Plus className="size-3.5" />
       </button>
       {agentOrder.length === 0 && (
-        <span className="text-[12px] text-text-secondary ml-2">
-          Press <kbd className="px-1 py-0.5 rounded border border-line text-[10.5px] font-mono">⌘T</kbd> to start a session
+        <span className="text-[12px] text-text-secondary ml-2 self-center">
+          Press <kbd className="px-1 py-0.5 rounded-[3px] border border-line text-[10.5px] font-mono">⌘T</kbd> to start a session
         </span>
       )}
       <ShortcutHint />
@@ -134,17 +134,17 @@ function ShortcutHint() {
           transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
           className="no-drag fixed bottom-6 right-6 z-50 pointer-events-none"
         >
-          <div className="rounded-lg border border-line bg-ink-1/95 backdrop-blur-md px-3.5 py-2.5 text-[12px] text-text-secondary leading-relaxed shadow-[0_8px_24px_rgba(0,0,0,0.35)] tracking-[-0.005em]">
-            <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px] text-text-primary">⌘T</kbd>
+          <div className="rounded border border-line bg-ink-1/95 backdrop-blur-md px-3 py-2 text-[12px] text-text-secondary leading-relaxed shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
+            <kbd className="px-1.5 py-0.5 rounded-[3px] border border-line font-mono text-[10.5px] text-text-primary">⌘T</kbd>
             <span className="mx-2">New session</span>
             <span className="text-text-tertiary/60">·</span>
             <span className="mx-2">
-              <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px] text-text-primary">⌘K</kbd>{" "}
+              <kbd className="px-1.5 py-0.5 rounded-[3px] border border-line font-mono text-[10.5px] text-text-primary">⌘K</kbd>{" "}
               Commands
             </span>
             <span className="text-text-tertiary/60">·</span>
             <span className="ml-2">
-              <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px] text-text-primary">⌘E</kbd>{" "}
+              <kbd className="px-1.5 py-0.5 rounded-[3px] border border-line font-mono text-[10.5px] text-text-primary">⌘E</kbd>{" "}
               Editor
             </span>
           </div>

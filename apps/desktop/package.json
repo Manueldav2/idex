@@ -6,15 +6,20 @@
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "build:mac": "pnpm build && electron-builder --mac --publish never",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:renderer": "vite build",
+    "build:mac": "pnpm build",
+    "electron:dev": "vite",
+    "electron:build": "vite build",
+    "electron:build:mac": "pnpm electron:build && electron-builder --mac --publish never",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0 || true",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "tauri:check": "cd src-tauri && cargo check"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

@@ -48,7 +48,7 @@ export function EditorMode() {
       <ActivityBar />
       {!sidebarCollapsed && (
         <aside
-          style={{ width: "260px" }}
+          style={{ width: "300px" }}
           className="flex h-full flex-col bg-ink-1 border-r border-line shrink-0 min-w-0"
         >
           {sidebarView === "files" && <FileTree tree={tree} />}
@@ -99,27 +99,27 @@ function EmptyEditorState({
   onOpenFolder: () => void;
 }) {
   return (
-    <div className="flex flex-1 items-center justify-center min-h-0">
+    <div className="flex flex-1 items-center justify-center min-h-0 bg-ink-0">
       <div className="flex flex-col items-center gap-3 text-center px-8 max-w-sm">
         {hasWorkspace ? (
-          <p className="text-[13.5px] text-text-secondary leading-relaxed tracking-[-0.005em]">
+          <p className="text-[13px] text-text-secondary leading-relaxed">
             Select a file from the tree to begin.
             <br />
             <span className="text-text-tertiary">
-              <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px]">⌘S</kbd>{" "}
+              <kbd className="px-1.5 py-0.5 rounded-[3px] border border-line font-mono text-[10.5px]">⌘S</kbd>{" "}
               save,{" "}
-              <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[10.5px]">⌘E</kbd>{" "}
+              <kbd className="px-1.5 py-0.5 rounded-[3px] border border-line font-mono text-[10.5px]">⌘E</kbd>{" "}
               back to the agent.
             </span>
           </p>
         ) : (
           <>
-            <p className="text-[13.5px] text-text-secondary leading-relaxed tracking-[-0.005em]">
+            <p className="text-[13px] text-text-secondary leading-relaxed">
               Open a folder to start editing.
             </p>
             <button
               onClick={onOpenFolder}
-              className="press-feedback inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] text-text-primary bg-ink-2 border border-line hover:border-line-soft transition-colors"
+              className="press-feedback inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[12.5px] text-text-primary bg-ink-2 border border-line hover:border-line-soft transition-colors"
             >
               <FolderPlus className="size-3.5" /> Open folder
             </button>

@@ -11,10 +11,11 @@ import {
 
 /**
  * X-palette tokens. Hard-coded so the card chrome is insulated from the
- * rest of the app's design system — this pane is meant to feel like the
- * real X (Twitter) client, not like IDEX. Primary bg is still our ink-0.
+ * rest of the app's design system — this pane is meant to feel like X,
+ * not like the surrounding IDE.
  */
 const X = {
+  bg: "#000000",
   text: "#e7e9ea",
   muted: "#71767b",
   divider: "#2f3336",
@@ -23,26 +24,6 @@ const X = {
   retweet: "#00ba7c",
   reply: "#1d9bf0",
 } as const;
-
-/** Source-origin chip shown next to the timestamp. Starter cards show nothing. */
-function sourceBadge(card: CardType): { label: string; bg: string } | null {
-  switch (card.source) {
-    case "hackernews":
-      return { label: "HN", bg: "#ff6600" };
-    case "reddit": {
-      // Try to pluck a sub from the URL if one is present.
-      const m = /reddit\.com\/r\/([A-Za-z0-9_]+)/i.exec(card.url);
-      const sub = m?.[1];
-      return { label: sub ? `r/${sub}` : "r/reddit", bg: "#ff4500" };
-    }
-    case "ad":
-      return { label: "AD", bg: "#71767b" };
-    case "twitter":
-    case "starter":
-    default:
-      return null;
-  }
-}
 
 /** Fallback avatar background color — matches the source chip tone. */
 function avatarBg(card: CardType): string {
@@ -57,7 +38,7 @@ function avatarBg(card: CardType): string {
       return "#71767b";
     case "starter":
     default:
-      return "#3d7bff"; // our accent — starter cards look "organic"
+      return X.reply;
   }
 }
 
@@ -74,7 +55,6 @@ export function Card({
 }) {
   const fb = card.fallback;
   const open = () => void window.idex.openExternal(card.url);
-  const badge = sourceBadge(card);
 
   // When Composio returns Twitter oEmbed HTML, prefer the native blockquote
   // widget — it gives us the real tweet chrome (media carousels, polls,
@@ -98,7 +78,7 @@ export function Card({
 
   // Some "verified" heuristic — treat twitter-source cards as verified so
   // the blue check appears in-context. Starter/HN/Reddit get nothing.
-  const verified = card.source === "twitter";
+  const verified = card.source === "twitter" || card.source === "x";
 
   const displayName = fb?.author?.name ?? "Unknown";
   const handle = fb?.author?.handle?.replace(/^@/, "") ?? "anon";
@@ -108,26 +88,26 @@ export function Card({
     <article
       className="x-card relative w-full px-4 py-3 cursor-pointer"
       onClick={open}
-      style={{ borderBottom: `1px solid ${X.divider}` }}
+      style={{ borderBottom: `1px solid ${X.divider}`, background: X.bg }}
     >
       {shimmer && (
         <div aria-hidden className="card-shimmer absolute inset-0" />
       )}
 
       <div className="flex items-start gap-3">
-        {/* Avatar — 48px round, absolute-feeling left column */}
+        {/* Avatar — X timeline size. */}
         <div className="shrink-0 pt-0.5">
           {fb?.author?.avatarUrl ? (
             <img
               src={fb.author.avatarUrl}
               alt=""
-              className="size-12 rounded-full bg-ink-2 object-cover"
+              className="size-10 rounded-full bg-black object-cover"
               loading="lazy"
               draggable={false}
             />
           ) : (
             <div
-              className="size-12 rounded-full flex items-center justify-center text-[18px] font-bold text-white select-none"
+              className="size-10 rounded-full flex items-center justify-center text-[16px] font-bold text-white select-none"
               style={{ background: avatarBg(card) }}
             >
               {initial}
@@ -148,16 +128,6 @@ export function Card({
 
             {verified && (
               <VerifiedCheck />
-            )}
-
-            {badge && (
-              <span
-                className="shrink-0 text-[10.5px] font-semibold px-1.5 py-[1px] rounded leading-none text-white tracking-wide"
-                style={{ background: badge.bg }}
-                title={card.source}
-              >
-                {badge.label}
-              </span>
             )}
 
             <span
@@ -270,16 +240,6 @@ export function Card({
               onClick={open}
             />
           </div>
-
-          {/* Relevance — kept, but toned way down. No "why —" label shouting. */}
-          {card.relevanceReason && (
-            <div
-              className="mt-2 text-[12px] leading-snug italic"
-              style={{ color: X.muted }}
-            >
-              {card.relevanceReason}
-            </div>
-          )}
         </div>
       </div>
     </article>
@@ -324,7 +284,7 @@ function OEmbedCard({
     <article
       className="x-card relative w-full px-3 py-3 cursor-pointer"
       onClick={onClick}
-      style={{ borderBottom: `1px solid ${X.divider}` }}
+      style={{ borderBottom: `1px solid ${X.divider}`, background: X.bg }}
     >
       {shimmer && <div aria-hidden className="card-shimmer absolute inset-0" />}
       <iframe
@@ -343,14 +303,6 @@ function OEmbedCard({
           colorScheme: "dark",
         }}
       />
-      {card.relevanceReason && (
-        <div
-          className="mt-2 text-[12px] leading-snug italic px-1"
-          style={{ color: X.muted }}
-        >
-          {card.relevanceReason}
-        </div>
-      )}
     </article>
   );
 }

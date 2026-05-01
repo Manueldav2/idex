@@ -1,12 +1,12 @@
 # IDEX — Tauri shell
 
-This directory is the parallel-universe replacement for the Electron main
-process under `electron/`. Both backends host the **same React frontend**
-in `apps/desktop/src/`. At boot the renderer detects which shell it's
-inside (`window.__TAURI_INTERNALS__`) and installs the matching IPC
-bridge — see `apps/desktop/src/lib/ipc-tauri.ts`.
+This directory is the default desktop shell for IDEX. It replaces the
+legacy Electron main process under `electron/` while hosting the same
+React frontend in `apps/desktop/src/`. At boot the renderer detects the
+Tauri webview (`window.__TAURI_INTERNALS__`) and installs the matching
+IPC bridge — see `apps/desktop/src/lib/ipc-tauri.ts`.
 
-The Tauri backend is staged in. To run it you need a Rust toolchain.
+To run the desktop app you need a Rust toolchain.
 
 ## Install Rust (one-time)
 
@@ -24,7 +24,7 @@ From the repo root:
 
 ```sh
 pnpm install              # picks up @tauri-apps/api and @tauri-apps/cli
-pnpm dev:tauri            # boots the Tauri shell against the same Vite dev server
+pnpm dev:desktop          # boots the Tauri shell
 ```
 
 The first `cargo build` will take 5-10 minutes — it's compiling all
@@ -40,22 +40,32 @@ incremental and fast.
 - `agent::*` → PTY spawn / input / resize / kill / list via
   `portable-pty`. Output streams to the renderer as `agent:output`
   events; state changes as `agent:state`.
+- `search_workspace` → ripgrep-backed workspace search
+- `scm::*` → git status, diff, stage, commit, pull/push/fetch
 - `open_external` → `tauri-plugin-shell`'s open()
 
-## What's still on Electron
+## Known Tauri Parity Gaps
 
-Bundling. The `electron-builder` release pipeline (`pnpm build:mac`) is
-unchanged. To produce a Tauri build, `pnpm build:tauri` from the repo
-root — that runs `tauri build` and emits a `.app` + `.dmg` into
+- Composio/X OAuth is still stubbed in `apps/desktop/src/lib/ipc-tauri.ts`.
+  The curator still works with no-auth sources and direct frontend HTTP
+  fetches, but hosted Composio connect/status is not wired in Rust yet.
+- Apple signing, notarization, and updater channel are not configured yet.
+
+## Build
+
+From the repo root:
+
+```sh
+pnpm build:desktop
+```
+
+That runs `tauri build` and emits a `.app` + `.dmg` into
 `apps/desktop/src-tauri/target/release/bundle`.
 
-## Coexistence with Electron
+## Legacy Electron Fallback
 
-Electron stays the default for now. Nothing in `electron/` was modified
-during this scaffold. To switch your daily-driver run:
+Electron is still available explicitly while the Tauri shell finishes
+parity work:
 
-- `pnpm dev:desktop` → Electron (existing behavior)
-- `pnpm dev:tauri` → Tauri (new path)
-
-When the Tauri build is stable for everything you do daily, we'll flip
-the default and remove Electron.
+- `pnpm dev:electron` → legacy Electron dev shell
+- `pnpm build:electron` → legacy Electron renderer/main build

@@ -1,10 +1,10 @@
 # IDEX Roadmap
 
 ## ✅ Phase 1 — Foundation (current)
-*"Electron shell + Claude Code cockpit working end-to-end."*
+*"Tauri shell + Claude Code cockpit working end-to-end."*
 
 - [x] Monorepo (pnpm workspaces, types/adapters/curator packages)
-- [x] Electron main process + node-pty agent host
+- [x] Tauri main process + portable-pty agent host
 - [x] React 19 + Vite + Tailwind v4 renderer
 - [x] xterm.js terminal embed with custom theme
 - [x] Setup flow: welcome → agent picker → privacy disclosure
@@ -14,8 +14,8 @@
 - [x] Card renderer (fallback structured renderer)
 - [x] Starter feed (12 evergreen dev tweets, works without API keys)
 - [x] Landing site with ContainerScroll hero + 6 sections
-- [x] electron-builder config (mac dmg/zip arm64+x64, unsigned)
-- [x] CI on macOS + Linux (typecheck + build)
+- [x] Tauri config (mac `.app` + `.dmg`, unsigned)
+- [x] CI on macOS + Linux (typecheck + build, Tauri bundle on macOS)
 
 ## ✅ Phase 2 — The magic moment
 *"The feed actually pulls real, contextual content from X."*
@@ -32,8 +32,9 @@
 ## 🚀 Phase 3 — Multi-agent + public release
 - [ ] Codex adapter (verify against live CLI)
 - [ ] Freebuff adapter (contribute upstream if needed)
+- [ ] Composio/X OAuth bridge on Tauri backend
 - [ ] Apple Developer ID + first notarization pass
-- [ ] Auto-update channel (electron-updater)
+- [ ] Auto-update channel (Tauri updater)
 - [ ] Public landing at idex.dev
 - [ ] Twitter/X launch tweet 🚀
 

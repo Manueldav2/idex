@@ -13,7 +13,7 @@
 
 > The IDE that watches the wait. Code while you scroll.
 
-IDEX is a Chromium-shelled desktop app that hosts your coding agent (Claude Code, Codex, Freebuff) inside a beautiful cockpit. While the agent generates a response, IDEX foregrounds a TikTok-energy, picture-to-picture scroll feed of media (videos, images, threads from X) that's contextually relevant to what you just asked the agent to do.
+IDEX is a Tauri desktop app that hosts your coding agent (Claude Code, Codex, Freebuff) inside a beautiful cockpit. While the agent generates a response, IDEX foregrounds a TikTok-energy, picture-to-picture scroll feed of media (videos, images, threads from X) that's contextually relevant to what you just asked the agent to do.
 
 When the agent finishes, the cockpit reclaims the main screen and the feed retreats to a peek strip on the edge.
 
@@ -31,7 +31,7 @@ When a developer prompts a coding agent, they wait 5–60 seconds for the respon
 
 ## 🎯 v1.0 capabilities
 
-- 🖥️ **Native macOS desktop app** (Apple Silicon + Intel)
+- 🖥️ **Native macOS Tauri desktop app** (Apple Silicon first)
 - 🤖 **Three coding agents on day one** (in phased rollout): Claude Code, Codex, Freebuff
 - 🎨 **moda.dev-inspired cockpit** — no chat bubbles, no avatars, just clean conversation
 - 📜 **Picture-to-picture feed** sourced from X via Composio
@@ -46,7 +46,7 @@ When a developer prompts a coding agent, they wait 5–60 seconds for the respon
 ```
 idex/
 ├── apps/
-│   ├── desktop/            # Electron + React desktop app
+│   ├── desktop/            # Tauri + React desktop app
 │   └── landing/            # Marketing site (idex.dev)
 ├── packages/
 │   ├── types/              # Shared TS types (IPC, Card, ContextEvent)
@@ -63,6 +63,7 @@ idex/
 **Prerequisites:**
 - Node.js 20+
 - pnpm 10+
+- Rust stable toolchain (`rustup`)
 - macOS 13+ (for desktop app)
 - Claude Code CLI installed (`npm install -g @anthropic-ai/claude-code`)
 
@@ -74,8 +75,14 @@ pnpm install
 # Run desktop app in dev
 pnpm dev:desktop
 
+# Legacy Electron shell, if needed
+pnpm dev:electron
+
 # Run landing site in dev
 pnpm dev:landing
+
+# Build the Tauri desktop app (.app + .dmg on macOS)
+pnpm build:desktop
 ```
 
 ## 🔑 Configuration
@@ -85,13 +92,13 @@ On first launch, IDEX walks you through:
 2. Optionally pasting your **OpenRouter** key (for the Curator) — works in starter-feed mode without one
 3. Optionally connecting **X** via Composio's hosted OAuth — works in starter-feed mode without one
 
-User config lives at `~/.idex/config.json`. Secrets live in your OS keychain (via [keytar](https://www.npmjs.com/package/keytar)).
+User config lives at `~/.idex/config.json`. Secrets live in your OS keychain.
 
 ---
 
 ## 🗺️ Roadmap
 
-- **Phase 1** (this build) — Foundation: Electron shell, Claude Code adapter, cockpit UI, settings, packaging
+- **Phase 1** (this build) — Foundation: Tauri shell, Claude Code adapter, cockpit UI, settings, packaging
 - **Phase 2** — Curator + Composio + Feed pane (the magic moment)
 - **Phase 3** — Codex + Freebuff adapters, landing site, Mac notarization, public beta
 - **v1.1** — Trygravity.ai ad slots enabled, telemetry-tuned curator, Reddit + YouTube feed sources

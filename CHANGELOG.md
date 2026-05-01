@@ -5,7 +5,14 @@ All notable changes to IDEX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Phase 2
+## [Unreleased]
+
+### Changed
+- Tauri is now the default desktop shell: `pnpm dev:desktop`, `pnpm --filter @idex/desktop dev`, `pnpm build`, and `pnpm build:desktop` run the Tauri path.
+- Electron remains available behind explicit fallback scripts: `pnpm dev:electron` and `pnpm build:electron`.
+- CI now builds the desktop renderer on all runners and checks/builds the Tauri backend on macOS.
+
+## [Phase 2]
 
 ### Added
 - **Real curator via GLM-4.6** (`z-ai/glm-4.6` on OpenRouter) with JSON-schema structured output, 5s timeout, graceful fallback to the deterministic planner.

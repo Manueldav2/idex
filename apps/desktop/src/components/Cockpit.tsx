@@ -20,6 +20,7 @@ import { Settings as SettingsDrawer } from "./Settings";
 import {
   Folder,
   FolderOpen,
+  Command,
   PanelRightClose,
   PanelRightOpen,
   Settings as SettingsIcon,
@@ -215,11 +216,11 @@ export function Cockpit() {
   return (
     <div className="flex h-full w-full bg-ink-0">
       <main className="relative flex h-full flex-1 flex-col bg-ink-0 border-r border-line min-w-0">
-        <header className="glass draggable flex items-center justify-between border-b border-line pl-24 pr-4 py-3 h-14 shrink-0">
+        <header className="draggable relative flex items-center justify-between border-b border-line bg-ink-1 pl-20 pr-3 h-9 shrink-0">
           <div className="flex items-center gap-3.5 no-drag min-w-0">
             <IdexLogo />
             <span className="h-4 w-px bg-line shrink-0" />
-            <div className="text-[13px] text-text-secondary flex items-center gap-2 min-w-0 tracking-[-0.005em]">
+            <div className="text-[12px] text-text-secondary flex items-center gap-1.5 min-w-0">
               <span className="text-text-primary truncate">
                 {mode === "editor"
                   ? "Editor"
@@ -229,14 +230,14 @@ export function Cockpit() {
               </span>
               {displayWorkspace && (
                 <>
-                  <span className="text-text-tertiary/60 mx-0.5">/</span>
+                  <span className="text-text-tertiary/70">/</span>
                   <button
                     onClick={() => setMode("editor")}
                     title={`workspace: ${activeWorkspace}\nClick to open editor`}
-                    className="press-feedback group inline-flex items-center gap-1.5 rounded px-1 py-0.5 hover:bg-ink-2/70 transition-colors min-w-0"
+                    className="press-feedback group inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-ink-2 transition-colors min-w-0"
                   >
-                    <Folder className="size-3.5 text-text-tertiary group-hover:text-text-secondary shrink-0 transition-colors" />
-                    <span className="truncate max-w-[200px] font-mono text-[12px] text-text-secondary group-hover:text-text-primary">
+                    <Folder className="size-3 text-text-tertiary group-hover:text-text-secondary shrink-0 transition-colors" />
+                    <span className="truncate max-w-[200px] text-[12px] text-text-secondary group-hover:text-text-primary">
                       {displayWorkspace}
                     </span>
                   </button>
@@ -244,28 +245,36 @@ export function Cockpit() {
               )}
             </div>
           </div>
-          <div className="no-drag flex items-center gap-1.5">
+          <button
+            onClick={() => setPaletteOpen(true)}
+            className="no-drag press-feedback absolute left-1/2 top-1/2 hidden h-6 w-[360px] max-w-[34vw] -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-1.5 rounded border border-line bg-ink-2/75 px-3 text-[12px] text-text-secondary shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:border-line-soft hover:text-text-primary lg:flex"
+            title="Command Palette (⌘K)"
+          >
+            <Command className="size-3.5 text-text-tertiary" />
+            <span className="truncate">{displayWorkspace ?? "Search workspace or ask IDEX"}</span>
+          </button>
+          <div className="no-drag flex items-center gap-1">
             <button
               onClick={() => setProjectsModalOpen(true)}
               title="Projects"
-              className="press-feedback inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] text-text-secondary hover:text-text-primary hover:bg-ink-2 transition-colors"
+              className="press-feedback inline-flex items-center gap-1.5 px-2 py-1 rounded text-[12px] text-text-secondary hover:text-text-primary hover:bg-ink-2 transition-colors"
             >
               <FolderOpen className="size-3.5" />
               Projects
             </button>
             <ModeToggle mode={mode} onChange={setMode} />
-            <div className="w-px h-4 bg-line mx-1" />
+            <div className="w-px h-4 bg-line mx-0.5" />
             <button
               onClick={() => setFeedState(feedState === "peek" ? "expanded" : "peek")}
               title={feedState === "peek" ? "Expand feed" : "Collapse feed"}
-              className="press-feedback p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-ink-2 transition-colors"
+              className="press-feedback p-1.5 rounded text-text-secondary hover:text-text-primary hover:bg-ink-2 transition-colors"
             >
               {feedState === "peek" ? <PanelRightOpen className="size-4" /> : <PanelRightClose className="size-4" />}
             </button>
             <button
               onClick={() => setSettingsOpen(true)}
               title="Settings"
-              className="press-feedback p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-ink-2 transition-colors"
+              className="press-feedback p-1.5 rounded text-text-secondary hover:text-text-primary hover:bg-ink-2 transition-colors"
             >
               <SettingsIcon className="size-4" />
             </button>
@@ -384,7 +393,7 @@ export function Cockpit() {
           </div>
         </div>
 
-        <footer className="border-t border-line bg-ink-0 px-6 py-2 flex items-center justify-between text-[11.5px] text-text-tertiary shrink-0 tracking-[-0.005em]">
+        <footer className="border-t border-line bg-ink-1 px-3 py-1.5 flex items-center justify-between text-[11px] text-text-tertiary shrink-0">
           <div className="flex items-center gap-3.5">
             {mode === "agent" && (
               <>
@@ -487,7 +496,7 @@ function ModeToggle({ mode, onChange }: { mode: CockpitMode; onChange: (m: Cockp
     <div
       role="tablist"
       aria-label="Cockpit mode"
-      className="inline-flex items-center rounded-md border border-line bg-ink-2/50 p-0.5"
+      className="inline-flex items-center rounded border border-line bg-ink-2 p-[2px]"
     >
       {(["agent", "autopilot", "editor"] as const).map((m) => {
         const active = mode === m;
@@ -498,9 +507,9 @@ function ModeToggle({ mode, onChange }: { mode: CockpitMode; onChange: (m: Cockp
             aria-selected={active}
             onClick={() => onChange(m)}
             className={cn(
-              "press-feedback text-[12px] px-2.5 py-1 rounded-[5px] transition-colors tracking-[-0.005em]",
+              "press-feedback text-[11.5px] px-2 py-0.5 rounded-[3px] transition-colors",
               active
-                ? "bg-ink-0 text-text-primary"
+                ? "bg-line-soft text-text-primary"
                 : "text-text-secondary hover:text-text-primary",
             )}
             title={titleForMode[m]}
@@ -516,7 +525,7 @@ function ModeToggle({ mode, onChange }: { mode: CockpitMode; onChange: (m: Cockp
 function FooterKey({ hint, chord }: { hint: string; chord: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <kbd className="px-1.5 py-[1.5px] rounded border border-line bg-ink-2/60 font-mono text-[10.5px] text-text-secondary">
+      <kbd className="px-1.5 py-[1px] rounded-[3px] border border-line bg-ink-2 font-mono text-[10px] text-text-secondary">
         {chord}
       </kbd>
       <span className="text-text-tertiary">{hint}</span>
@@ -529,9 +538,9 @@ function EmptyState({ onNew }: { onNew: () => void }) {
     <div className="h-full flex items-center justify-center">
       <button
         onClick={onNew}
-        className="press-feedback text-text-secondary hover:text-text-primary text-[13.5px] tracking-[-0.005em]"
+        className="press-feedback text-text-secondary hover:text-text-primary text-[13px]"
       >
-        Press <kbd className="px-1.5 py-0.5 rounded border border-line font-mono text-[11.5px]">⌘T</kbd> to start a session
+        Press <kbd className="px-1.5 py-0.5 rounded-[3px] border border-line font-mono text-[11px]">⌘T</kbd> to start a session
       </button>
     </div>
   );

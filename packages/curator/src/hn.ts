@@ -56,7 +56,10 @@ function hnToCard(h: HNHit, query: string): Card {
       media: [],
       author: {
         name: h.author,
-        handle: `HN · ${h.points ?? 0} pts · ${h.num_comments ?? 0} comments`,
+        // X-style handle (just username). HN points/comments used to
+        // render here but broke the "identical to X" feel; rank is
+        // still driven by `score` below.
+        handle: h.author,
         // DiceBear identicon — seeded on the HN username so the same
         // poster always gets the same avatar. HN itself doesn't expose
         // avatars at all, so without this the card renders a generic

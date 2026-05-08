@@ -63,7 +63,10 @@ function redditToCard(d: RedditChild["data"], query: string): Card {
         : [],
       author: {
         name: d.author,
-        handle: `r/${d.subreddit} · ${d.score} pts`,
+        // X-style handle (just username). Subreddit + score used to
+        // render here but broke the "identical to X" feel; rank is
+        // still driven by `score` below.
+        handle: d.author,
         // DiceBear "identicon" — deterministic geometric avatar from the
         // username seed. Not a real face, but an image that varies per
         // user instead of the default colored-letter circle that was

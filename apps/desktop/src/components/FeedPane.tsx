@@ -16,17 +16,17 @@ import {
 } from "lucide-react";
 
 /** X divider color — used in header/divider lines to match the card chrome. */
-// Match cockpit `--color-ink-0` so the X surface (peek strip + expanded
-// pane) blends seamlessly with the IDE chrome — no visible bezel between
-// the agent terminal and the feed.
-const X_BG = "#1e1e1e";
-// Softer divider that reads against ink-0 background instead of pure black.
-const X_DIVIDER = "#2a2a2a";
+// Authentic X.com colors — pure black canvas, dim panels, soft dividers.
+// Earlier this was set to ink-0 to blend with the cockpit, but the
+// product brief is "identical to X" — the seam at the cockpit/feed
+// boundary is acceptable because in expanded mode the feed dominates,
+// and in peek mode the strip is narrow enough to read as a separate
+// surface.
+const X_BG = "#000000";
+const X_DIVIDER = "#2f3336";
 const X_MUTED = "#71767b";
 const X_TEXT = "#e7e9ea";
-// Slight lift above ink-0 (#1e1e1e) so the "What's happening" / "Who to
-// follow" cards still read as cards, not a flat plane.
-const X_PANEL = "#252526";
+const X_PANEL = "#16181c";
 const X_BLUE = "#1d9bf0";
 
 export function FeedPane() {

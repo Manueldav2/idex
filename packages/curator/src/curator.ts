@@ -63,6 +63,38 @@ function findProtectedPhrases(text: string): string[] {
   return PROTECTED_PHRASES.filter((p) => low.includes(p));
 }
 
+/**
+ * Strip self-brand tokens from a query string. Keeps the query's natural
+ * shape (multi-word queries don't get destroyed) but drops a leaked brand
+ * token without turning into a single-word query.
+ */
+function sanitizeQuery(q: string): string {
+  const cleaned = q
+    .split(/\s+/)
+    .filter((w) => !SELF_BRAND_TOKENS.has(w.toLowerCase()))
+    .join(" ")
+    .trim();
+  return cleaned;
+}
+
+/**
+ * Drop cards that are clearly false-positive brand/namespace collisions
+ * (IDEX Metals mining stock, Beretta IDEX firearms, etc.). Cheap, no
+ * LLM call — purely regex on title + body.
+ */
+export function filterBrandCollisions(cards: Card[]): Card[] {
+  return cards.filter((c) => {
+    const haystack = [
+      c.fallback?.text ?? "",
+      c.fallback?.author?.handle ?? "",
+      c.fallback?.author?.name ?? "",
+      c.url ?? "",
+      c.relevanceReason ?? "",
+    ].join(" ");
+    return !NEGATIVE_BRAND_MARKERS.some((re) => re.test(haystack));
+  });
+}
+
 /** Default / ambient developer queries — used when the user's prompt hasn't
  *  given us much signal yet, so the feed still feels alive on first open. */
 const DEFAULT_AMBIENT_TOPICS = [
@@ -71,6 +103,39 @@ const DEFAULT_AMBIENT_TOPICS = [
   "claude",
   "developer tools",
   "design engineering",
+];
+
+/**
+ * Tokens that ARE the product/brand itself — never query for these. When
+ * a developer is building IDEX itself, "IDEX" leaks into queries and the
+ * feed fills with IDEX Metals (mining stock), Beretta IDEX (firearms), and
+ * other unrelated namespace collisions. Same for the agent product names
+ * if they get repeated as filler ("ok claude, please…").
+ */
+const SELF_BRAND_TOKENS = new Set([
+  "idex",
+  "cockpit",
+  "freebuff",
+  "moda",
+  "trygravity",
+  "bun",
+  // The setup-flow phrases that frequently appear in early conversation
+  "agent",
+  "agents",
+]);
+
+/**
+ * Markers that indicate a card is a brand/namespace collision, NOT a
+ * software-developer-relevant result. If a card title or body matches any
+ * of these and the conversation isn't about that domain, drop it.
+ */
+const NEGATIVE_BRAND_MARKERS = [
+  /idex\s+metals/i,
+  /idex\.v\b/i,                 // IDEX Metals stock ticker
+  /beretta/i,                   // Beretta IDEX firearms
+  /\bnarp\b/i,                  // Beretta Project NARP
+  /idex\s+(corp|inc|ltd|holdings)/i,
+  /\bidex[-–]2025[-–]beretta/i,
 ];
 
 /**
@@ -137,6 +202,7 @@ function naiveTopics(events: ContextEvent[], maxTopics = 8): string[] {
   const counts = new Map<string, number>();
   for (const tok of tokens) {
     if (STOP_WORDS.has(tok)) continue;
+    if (SELF_BRAND_TOKENS.has(tok)) continue;
     if (tok.length < 3) continue;
     const isShared = userTokens.has(tok) && agentTokens.has(tok);
     const bump = isShared ? 3 : 1;
@@ -231,7 +297,7 @@ export function planFromContext(input: CuratorInput): CuratorPlan {
   // De-dupe preserving order (first occurrence wins — most specific first).
   const seen = new Set<string>();
   const xQueries = smartQueries
-    .map((q) => q.trim())
+    .map((q) => sanitizeQuery(q))
     .filter((q) => q.length >= 3)
     .filter((q) => {
       const key = q.toLowerCase();
@@ -455,7 +521,7 @@ export async function curateLive(
 
   // Final feed: interleaved live on top, starter cards as the tail so a
   // user who scrolls to the bottom still has something.
-  const combined = [...interleaved, ...fallback].slice(0, limit);
+  const combined = filterBrandCollisions([...interleaved, ...fallback]).slice(0, limit);
 
   return {
     plan,

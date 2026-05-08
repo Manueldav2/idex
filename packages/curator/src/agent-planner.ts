@@ -38,7 +38,21 @@ interface PlannerInput {
 const DEFAULT_MODEL = "google/gemini-2.5-flash";
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
+const SELF_BRAND_TOKENS = new Set([
+  "idex", "cockpit", "freebuff", "moda", "trygravity",
+]);
+
+function sanitizeAgentQuery(q: string): string {
+  return q
+    .split(/\s+/)
+    .filter((w) => !SELF_BRAND_TOKENS.has(w.toLowerCase().replace(/[^a-z]/g, "")))
+    .join(" ")
+    .trim();
+}
+
 const SYSTEM_PROMPT = `You are IDEX's feed curator. You look at what a developer is working on and return 4 short search queries that would surface the most useful tweets, discussions, or blog posts on X (Twitter).
+
+NEVER include the words "IDEX", "cockpit", "freebuff", "moda", or "trygravity" in any query — those are the names of the product the developer is building, and matching on them returns IDEX Metals (mining stock), Beretta IDEX (firearms), and other unrelated namespace collisions. If the developer mentions building IDEX itself, search for the underlying technology (Tauri, React, Electron, AI agent UX) instead.
 
 Rules:
 - Each query is 2–6 words.
@@ -103,7 +117,7 @@ export async function planQueriesWithAgent(
     const queries = Array.isArray(parsed.queries)
       ? parsed.queries
           .filter((q): q is string => typeof q === "string")
-          .map((q) => q.trim())
+          .map((q) => sanitizeAgentQuery(q))
           .filter((q) => q.length >= 3 && q.length <= 80)
           .slice(0, 4)
       : [];

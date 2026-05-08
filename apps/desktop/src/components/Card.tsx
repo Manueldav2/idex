@@ -119,23 +119,33 @@ export function Card({
         <div className="flex-1 min-w-0">
           {/* Row 1 — name · check · @handle · · · time · … */}
           <div className="flex items-center gap-1 min-w-0">
-            <span
-              className="font-semibold text-[15px] leading-[1.2] truncate"
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                void window.idex.openExternal(`https://x.com/${handle}`);
+              }}
+              className="press-feedback font-semibold text-[15px] leading-[1.2] truncate hover:underline"
               style={{ color: X.text }}
+              title={`Open @${handle} on X`}
             >
               {displayName}
-            </span>
+            </button>
 
             {verified && (
               <VerifiedCheck />
             )}
 
-            <span
-              className="text-[15px] leading-[1.2] truncate"
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                void window.idex.openExternal(`https://x.com/${handle}`);
+              }}
+              className="press-feedback text-[15px] leading-[1.2] truncate hover:underline"
               style={{ color: X.muted }}
+              title={`Open @${handle} on X`}
             >
               @{handle}
-            </span>
+            </button>
             <span className="text-[15px] leading-[1.2]" style={{ color: X.muted }}>
               ·
             </span>

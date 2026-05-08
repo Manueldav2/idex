@@ -16,11 +16,17 @@ import {
 } from "lucide-react";
 
 /** X divider color — used in header/divider lines to match the card chrome. */
-const X_BG = "#000000";
-const X_DIVIDER = "#2f3336";
+// Match cockpit `--color-ink-0` so the X surface (peek strip + expanded
+// pane) blends seamlessly with the IDE chrome — no visible bezel between
+// the agent terminal and the feed.
+const X_BG = "#1e1e1e";
+// Softer divider that reads against ink-0 background instead of pure black.
+const X_DIVIDER = "#2a2a2a";
 const X_MUTED = "#71767b";
 const X_TEXT = "#e7e9ea";
-const X_PANEL = "#16181c";
+// Slight lift above ink-0 (#1e1e1e) so the "What's happening" / "Who to
+// follow" cards still read as cards, not a flat plane.
+const X_PANEL = "#252526";
 const X_BLUE = "#1d9bf0";
 
 export function FeedPane() {
@@ -410,21 +416,27 @@ function XLogo({ className = "size-7" }: { className?: string }) {
 }
 
 function XNav({ onCollapse }: { onCollapse: () => void }) {
+  const open = (path: string) => () => void window.idex.openExternal(`https://x.com${path}`);
   return (
     <nav className="hidden h-full w-[275px] shrink-0 flex-col px-3 pt-1 text-[20px] text-white lg:flex">
-      <div className="mb-2 flex h-[50px] w-[50px] items-center justify-center rounded-full hover:bg-white/10">
-        <XLogo className="size-[26px]" />
-      </div>
-      <XNavItem icon={<Home className="size-[26px]" />} label="Home" active />
-      <XNavItem icon={<Search className="size-[26px]" />} label="Explore" />
-      <XNavItem icon={<Bell className="size-[26px]" />} label="Notifications" />
-      <XNavItem icon={<Mail className="size-[26px]" />} label="Messages" />
-      <XNavItem icon={<Bookmark className="size-[26px]" />} label="Bookmarks" />
-      <XNavItem icon={<Users className="size-[26px]" />} label="Communities" />
-      <XNavItem icon={<User className="size-[26px]" />} label="Profile" />
-      <XNavItem icon={<CircleEllipsis className="size-[26px]" />} label="More" />
       <button
-        className="mt-4 h-[52px] w-[90%] rounded-full text-[17px] font-bold text-white transition-colors hover:brightness-95"
+        onClick={open("/home")}
+        className="mb-2 flex h-[50px] w-[50px] items-center justify-center rounded-full hover:bg-white/10"
+        title="Open X"
+      >
+        <XLogo className="size-[26px]" />
+      </button>
+      <XNavItem icon={<Home className="size-[26px]" />} label="Home" active onClick={open("/home")} />
+      <XNavItem icon={<Search className="size-[26px]" />} label="Explore" onClick={open("/explore")} />
+      <XNavItem icon={<Bell className="size-[26px]" />} label="Notifications" onClick={open("/notifications")} />
+      <XNavItem icon={<Mail className="size-[26px]" />} label="Messages" onClick={open("/messages")} />
+      <XNavItem icon={<Bookmark className="size-[26px]" />} label="Bookmarks" onClick={open("/i/bookmarks")} />
+      <XNavItem icon={<Users className="size-[26px]" />} label="Communities" onClick={open("/i/communities")} />
+      <XNavItem icon={<User className="size-[26px]" />} label="Profile" onClick={open("/i/profile")} />
+      <XNavItem icon={<CircleEllipsis className="size-[26px]" />} label="More" onClick={open("/settings")} />
+      <button
+        onClick={open("/compose/post")}
+        className="press-feedback mt-4 h-[52px] w-[90%] rounded-full text-[17px] font-bold text-white transition-colors hover:brightness-95"
         style={{ background: X_BLUE }}
       >
         Post
@@ -451,13 +463,19 @@ function XNavItem({
   icon,
   label,
   active = false,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <button className="flex w-fit items-center gap-5 rounded-full px-3 py-3 transition-colors hover:bg-white/10">
+    <button
+      onClick={onClick}
+      className="press-feedback flex w-fit items-center gap-5 rounded-full px-3 py-3 transition-colors hover:bg-white/10"
+      title={`Open ${label} on X`}
+    >
       <span>{icon}</span>
       <span className={active ? "font-bold" : "font-normal"}>{label}</span>
     </button>
@@ -481,13 +499,25 @@ function XRightRail({
         className="sticky top-0 z-10 flex h-[53px] items-center gap-3"
         style={{ background: X_BG }}
       >
-        <div
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const q = (e.currentTarget.elements.namedItem("q") as HTMLInputElement | null)?.value?.trim();
+            if (!q) return;
+            void window.idex.openExternal(`https://x.com/search?q=${encodeURIComponent(q)}&src=typed_query`);
+          }}
           className="flex h-11 flex-1 items-center gap-3 rounded-full px-4"
           style={{ background: "#202327", color: X_MUTED }}
         >
           <Search className="size-[18px]" />
-          <span className="text-[15px]">Search</span>
-        </div>
+          <input
+            name="q"
+            type="text"
+            placeholder="Search X"
+            className="w-full bg-transparent text-[15px] outline-none placeholder:text-[15px]"
+            style={{ color: X_TEXT }}
+          />
+        </form>
         <button
           onClick={onCollapse}
           className="x-header-btn flex size-9 shrink-0 items-center justify-center rounded-full transition-colors"
@@ -551,8 +581,13 @@ function TrendRow({
 }
 
 function FollowRow({ name, handle }: { name: string; handle: string }) {
+  const cleanHandle = handle.replace(/^@/, "");
   return (
-    <button className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]">
+    <button
+      onClick={() => void window.idex.openExternal(`https://x.com/${cleanHandle}`)}
+      className="press-feedback flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.03]"
+      title={`Open ${handle} on X`}
+    >
       <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-[15px] font-black text-black">
         {name[0]}
       </div>
@@ -564,7 +599,13 @@ function FollowRow({ name, handle }: { name: string; handle: string }) {
           {handle}
         </div>
       </div>
-      <span className="rounded-full bg-white px-4 py-1.5 text-[14px] font-bold text-black">
+      <span
+        className="rounded-full bg-white px-4 py-1.5 text-[14px] font-bold text-black"
+        onClick={(e) => {
+          e.stopPropagation();
+          void window.idex.openExternal(`https://x.com/${cleanHandle}`);
+        }}
+      >
         Follow
       </span>
     </button>

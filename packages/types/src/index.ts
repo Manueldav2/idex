@@ -8,7 +8,7 @@
  *   - packages/curator (Curator pipeline)
  */
 
-export type AgentId = "claude-code" | "codex" | "freebuff" | "shell";
+export type AgentId = "claude-code" | "codex" | "freebuff" | "codebuff" | "shell";
 
 export type AgentState = "idle" | "spawning" | "generating" | "done" | "error";
 

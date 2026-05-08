@@ -129,7 +129,12 @@ function AgentPickPane({
       name: "Freebuff",
       tagline: "The free, ad-supported coding agent from Codebuff.",
       install: "npm install -g freebuff",
-      badge: "Phase 3",
+    },
+    {
+      id: "codebuff",
+      name: "Codebuff",
+      tagline: "Codebuff's full coding agent — share-context, multi-file edits.",
+      install: "npm install -g codebuff",
     },
   ];
 
@@ -146,7 +151,7 @@ function AgentPickPane({
       <div className="space-y-2.5">
         {agents.map((a) => {
           const active = selected === a.id;
-          const disabled = a.id !== "claude-code";
+          const disabled = false;
           return (
             <button
               key={a.id}

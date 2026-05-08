@@ -13,6 +13,13 @@ interface Props {
   active: boolean;
 }
 
+/** Minimum cols we'll accept before reporting size to the PTY. Below this,
+ * the container almost certainly hasn't laid out yet (display:none → block
+ * transitions, font-loading, feed-state animations). Sending a too-small
+ * cols/rows makes Claude Code rewrap to ~30 cols and the cockpit looks
+ * shattered until the next genuine resize. */
+const SANE_COLS_FLOOR = 30;
+
 /**
  * One xterm terminal bound to one session. Mounted once per session, kept
  * mounted (via display:none when inactive) so scrollback persists when the
@@ -75,12 +82,15 @@ export function SessionView({ data, active }: Props) {
       // glyphs are rasterised by xterm itself, cell-aligned.
       customGlyphs: true,
       theme: {
-        background: "#0B0C10",
+        // Match --color-ink-0 so the terminal canvas merges seamlessly
+        // with the surrounding cockpit chrome — no visible bezel between
+        // app background and terminal cells.
+        background: "#1e1e1e",
         foreground: "#EEF0F3",
         cursor: "#3D7BFF",
-        cursorAccent: "#0B0C10",
+        cursorAccent: "#1e1e1e",
         selectionBackground: "rgba(61,123,255,0.22)",
-        black: "#0B0C10",
+        black: "#1e1e1e",
         red: "#FF6B6B",
         green: "#5EEAD4",
         yellow: "#FBBF24",
@@ -145,7 +155,6 @@ export function SessionView({ data, active }: Props) {
         return { cols: 0, rows: 0 };
       }
     };
-    const SANE_COLS_FLOOR = 30;
     let fitAttempts = 0;
     const tryFit = () => {
       fitAttempts += 1;
@@ -309,32 +318,52 @@ export function SessionView({ data, active }: Props) {
   // Keep activeRef in sync for the onData closure. Also clear the line
   // buffer on tab-switch so stale characters don't get coalesced into the
   // next Enter submission.
+  //
+  // Reliable tab-switch redraw: a single setTimeout was racing the
+  // display:block → layout settle window. Switching tabs quickly left
+  // the prompt half-rendered (torn underscores, ghost cursor) because
+  // fit/refresh ran before the container had real width. Now we wait
+  // through TWO requestAnimationFrames so we're guaranteed past one
+  // full paint cycle, fit + resize the PTY, then on the *next* paint
+  // refresh + focus. Cancellable on rapid switches.
   useEffect(() => {
     activeRef.current = active;
     if (!active) {
       lineBufferRef.current = "";
       return;
     }
-    const id = setTimeout(() => {
-      try {
-        fitRef.current?.fit();
-        const t = xtermRef.current;
-        if (t) {
-          // Re-draw the whole viewport. WebGL/canvas state retained
-          // stale pixels from the previously-visible tab — without a
-          // full refresh, switching tabs left ghosted input lines from
-          // the outgoing session painted on top of the incoming one.
-          t.refresh(0, t.rows - 1);
-          t.focus();
-          // Also report new dims to the PTY so Claude rewraps.
+    let cancelled = false;
+    let raf1 = 0;
+    let raf2 = 0;
+    let raf3 = 0;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        if (cancelled) return;
+        const term = xtermRef.current;
+        const fit = fitRef.current;
+        if (!term || !fit) return;
+        try {
+          fit.fit();
+          if (term.cols >= SANE_COLS_FLOOR) {
+            void ipc().agent.resize({ sessionId, cols: term.cols, rows: term.rows });
+          }
+        } catch { /* ignore */ }
+        raf3 = requestAnimationFrame(() => {
+          if (cancelled) return;
           try {
-            void ipc().agent.resize({ sessionId, cols: t.cols, rows: t.rows });
+            term.refresh(0, term.rows - 1);
+            term.focus();
           } catch { /* ignore */ }
-        }
-      } catch { /* ignore */ }
-    }, 50);
-    return () => clearTimeout(id);
-  }, [active]);
+        });
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      cancelAnimationFrame(raf3);
+    };
+  }, [active, sessionId]);
 
   // Refit + force a full canvas redraw whenever the cockpit mode changes
   // back to "agent". Without this, xterm keeps whatever dimensions it had
@@ -368,7 +397,7 @@ export function SessionView({ data, active }: Props) {
       ref={containerRef}
       onClick={() => xtermRef.current?.focus()}
       style={{ display: active ? "block" : "none" }}
-      className="h-full w-full px-5 pt-3 pb-3 overflow-hidden cursor-text"
+      className="h-full w-full px-3 pt-2 pb-1 overflow-hidden cursor-text"
     />
   );
 }

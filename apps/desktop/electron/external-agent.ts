@@ -130,6 +130,7 @@ function friendlyLabel(agentId: AgentId, cwd: string): string {
     "claude-code": "Claude Code",
     codex: "Codex",
     freebuff: "Freebuff",
+    codebuff: "Codebuff",
     shell: "Shell",
   }[agentId] ?? agentId;
   return `${display} · ${shortCwd}`;

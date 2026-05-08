@@ -102,7 +102,12 @@ export const useAgent = create<AgentStore>((set, get) => ({
   },
 
   async createSession(opts = {}) {
-    const agentId: AgentId = opts.agentId ?? "claude-code";
+    // Honour the Settings → Primary coding agent selection by default.
+    // Without this, switching the agent in Settings only affected
+    // external-agent launches; new tabs in the cockpit kept spawning
+    // Claude Code regardless of the user's choice.
+    const agentId: AgentId =
+      opts.agentId ?? useSettings.getState().config.selectedAgent ?? "claude-code";
     // Default the spawn directory to whatever workspace the user has
     // currently open. Without this, every new session was rooting Claude
     // in $HOME — so "⌘T to start working on this project" opened the

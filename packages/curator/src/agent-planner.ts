@@ -35,7 +35,11 @@ interface PlannerInput {
   model?: string;
 }
 
-const DEFAULT_MODEL = "google/gemini-2.5-flash";
+// Default to a free open-source model on OpenRouter so users with just a
+// free OpenRouter key get the smart curator at zero cost. Llama 3.3 70B
+// is a strong instruction-follower and reliably emits the strict-JSON
+// shape we ask for. Override via `model` if you want something else.
+const DEFAULT_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 const SELF_BRAND_TOKENS = new Set([

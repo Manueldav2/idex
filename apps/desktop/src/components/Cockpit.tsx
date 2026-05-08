@@ -217,31 +217,25 @@ export function Cockpit() {
     <div className="flex h-full w-full bg-ink-0">
       <main className="relative flex h-full flex-1 flex-col bg-ink-0 border-r border-line min-w-0">
         <header className="draggable relative flex items-center justify-between border-b border-line bg-ink-1 pl-20 pr-3 h-9 shrink-0">
-          <div className="flex items-center gap-3.5 no-drag min-w-0">
+          <div className="flex items-center gap-2.5 no-drag min-w-0">
             <IdexLogo />
             <span className="h-4 w-px bg-line shrink-0" />
             <div className="text-[12px] text-text-secondary flex items-center gap-1.5 min-w-0">
-              <span className="text-text-primary truncate">
-                {mode === "editor"
-                  ? "Editor"
-                  : mode === "autopilot"
-                    ? "Autopilot"
-                    : active?.session.label ?? "Agent"}
-              </span>
-              {displayWorkspace && (
-                <>
-                  <span className="text-text-tertiary/70">/</span>
-                  <button
-                    onClick={() => setMode("editor")}
-                    title={`workspace: ${activeWorkspace}\nClick to open editor`}
-                    className="press-feedback group inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-ink-2 transition-colors min-w-0"
-                  >
-                    <Folder className="size-3 text-text-tertiary group-hover:text-text-secondary shrink-0 transition-colors" />
-                    <span className="truncate max-w-[200px] text-[12px] text-text-secondary group-hover:text-text-primary">
-                      {displayWorkspace}
-                    </span>
-                  </button>
-                </>
+              {mode === "agent" && displayWorkspace ? (
+                <button
+                  onClick={() => setMode("editor")}
+                  title={`workspace: ${activeWorkspace}\nClick to open editor`}
+                  className="press-feedback group inline-flex items-center gap-1.5 rounded px-1 py-0.5 hover:bg-ink-2 transition-colors min-w-0"
+                >
+                  <Folder className="size-3 text-text-tertiary group-hover:text-text-secondary shrink-0 transition-colors" />
+                  <span className="truncate max-w-[260px] text-[12px] text-text-primary">
+                    {displayWorkspace}
+                  </span>
+                </button>
+              ) : (
+                <span className="text-text-primary truncate">
+                  {mode === "editor" ? "Editor" : mode === "autopilot" ? "Autopilot" : "Agent"}
+                </span>
               )}
             </div>
           </div>
@@ -251,7 +245,7 @@ export function Cockpit() {
             title="Command Palette (⌘K)"
           >
             <Command className="size-3.5 text-text-tertiary" />
-            <span className="truncate">{displayWorkspace ?? "Search workspace or ask IDEX"}</span>
+            <span className="truncate">Search workspace or ask IDEX</span>
           </button>
           <div className="no-drag flex items-center gap-1">
             <button

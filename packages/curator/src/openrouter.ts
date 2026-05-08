@@ -12,7 +12,10 @@
 import type { CuratorPlan } from "./types.js";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
-const MODEL = "z-ai/glm-4.6";
+// Default to a free open-source model so users can run the smart curator
+// with just a free-tier OpenRouter key. Llama 3.3 70B follows strict-JSON
+// instructions reliably and is no-cost on OpenRouter's free pool.
+const MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 const DEFAULT_TIMEOUT_MS = 5_000;
 
 /**

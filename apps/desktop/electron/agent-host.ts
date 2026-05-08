@@ -93,9 +93,8 @@ class AgentHost {
     env["PATH"] = [...extraPaths, env["PATH"] ?? ""].filter(Boolean).join(":");
 
     const cwd = opts.cwd || os.homedir();
-    const label =
-      opts.label ??
-      `${adapter.displayName} · ${cwd.replace(os.homedir(), "~").split("/").slice(-2).join("/") || "~"}`;
+    const folderName = cwd.replace(os.homedir(), "~").split("/").pop() || "~";
+    const label = opts.label ?? `${adapter.displayName} · ${folderName}`;
 
     const resolvedCmd = await resolveCommand(command.cmd, env["PATH"] ?? "");
     if (!resolvedCmd) {

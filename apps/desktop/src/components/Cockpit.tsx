@@ -278,27 +278,15 @@ export function Cockpit() {
         {mode === "agent" && !showFullscreenLauncher && <SessionTabs />}
 
         {mode === "agent" && (lastError || globalError) && (
-          <div className="border-b border-error/25 bg-error/10 px-6 py-3 text-[12px] text-error flex items-start justify-between gap-4">
-            <div className="flex-1 leading-relaxed">
-              <span className="font-semibold">Couldn't launch your agent.</span>{" "}
-              <span className="opacity-80">{lastError ?? globalError}</span>
-              <div className="mt-1.5 text-[11px] font-mono text-text-secondary">
-                install:{" "}
-                <code className="bg-ink-0 px-1.5 py-0.5 rounded border border-line">
-                  npm i -g @anthropic-ai/claude-code
-                </code>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                clearGlobalError();
-                void createSession({ agentId: config.selectedAgent });
-              }}
-              className="press-feedback text-[11px] font-mono text-error hover:brightness-125 underline-offset-2 hover:underline shrink-0"
-            >
-              retry
-            </button>
-          </div>
+          <AgentLaunchError
+            message={lastError ?? globalError ?? ""}
+            agentId={config.selectedAgent}
+            onClear={() => clearGlobalError()}
+            onRetry={() => {
+              clearGlobalError();
+              void createSession({ agentId: config.selectedAgent });
+            }}
+          />
         )}
 
         {/*
@@ -553,4 +541,89 @@ function shortenHome(p: string): string {
   const winMatch = p.match(/^([A-Z]:\\Users\\[^\\]+)(\\.*)?$/);
   if (winMatch) return `~${(winMatch[2] ?? "").replace(/\\/g, "/")}`;
   return p;
+}
+
+const AGENT_INSTALL: Record<string, { pkg: string; cmd: string }> = {
+  "claude-code": { pkg: "@anthropic-ai/claude-code", cmd: "npm i -g @anthropic-ai/claude-code" },
+  codex: { pkg: "@openai/codex", cmd: "npm i -g @openai/codex" },
+  freebuff: { pkg: "freebuff", cmd: "npm i -g freebuff" },
+  codebuff: { pkg: "codebuff", cmd: "npm i -g codebuff" },
+};
+
+function AgentLaunchError({
+  message,
+  agentId,
+  onClear,
+  onRetry,
+}: {
+  message: string;
+  agentId: string;
+  onClear: () => void;
+  onRetry: () => void;
+}) {
+  const [installing, setInstalling] = useState(false);
+  const [installResult, setInstallResult] = useState<string | null>(null);
+  const info = AGENT_INSTALL[agentId];
+  const isMissing = /not found on PATH|posix_spawnp/i.test(message);
+
+  async function installAndRetry() {
+    if (!info) return;
+    setInstalling(true);
+    setInstallResult(null);
+    try {
+      const r = await window.idex.agent.installCli(agentId);
+      if (r.ok) {
+        setInstallResult(`Installed ${r.pkg}. Retrying…`);
+        onRetry();
+      } else {
+        setInstallResult(`Install failed: ${r.error || "unknown"}.\nRun manually: ${info.cmd}`);
+      }
+    } finally {
+      setInstalling(false);
+    }
+  }
+
+  return (
+    <div className="border-b border-error/25 bg-error/10 px-6 py-3 text-[12px] text-error flex items-start justify-between gap-4">
+      <div className="flex-1 leading-relaxed min-w-0">
+        <span className="font-semibold">Couldn&apos;t launch your agent.</span>{" "}
+        <span className="opacity-80">{message}</span>
+        {info && (
+          <div className="mt-1.5 text-[11px] font-mono text-text-secondary truncate">
+            install:{" "}
+            <code className="bg-ink-0 px-1.5 py-0.5 rounded border border-line">
+              {info.cmd}
+            </code>
+          </div>
+        )}
+        {installResult && (
+          <div className="mt-1.5 text-[11px] text-text-secondary whitespace-pre-wrap">{installResult}</div>
+        )}
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        {info && isMissing && (
+          <button
+            onClick={installAndRetry}
+            disabled={installing}
+            className="press-feedback text-[11px] font-mono text-text-primary bg-accent/20 hover:bg-accent/30 px-2.5 py-1 rounded border border-accent/40 disabled:opacity-50"
+          >
+            {installing ? "Installing…" : `Install ${info.pkg}`}
+          </button>
+        )}
+        <button
+          onClick={onRetry}
+          className="press-feedback text-[11px] font-mono text-error hover:brightness-125 underline-offset-2 hover:underline"
+        >
+          retry
+        </button>
+        <button
+          onClick={onClear}
+          className="press-feedback text-[11px] font-mono text-text-tertiary hover:text-text-secondary"
+          aria-label="Dismiss"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
 }

@@ -22,6 +22,40 @@ import { launchExternalAgent } from "./external-agent.js";
 import { connectX, readStatus } from "./composio-oauth.js";
 import { searchWorkspace } from "./workspace-search.js";
 import { gitStatus, gitDiff, gitStage, gitCommit, gitRun } from "./scm.js";
+import { execFile } from "node:child_process";
+import os from "node:os";
+
+const AGENT_INSTALL_PKG: Record<string, string> = {
+  "claude-code": "@anthropic-ai/claude-code",
+  codex: "@openai/codex",
+  freebuff: "freebuff",
+  codebuff: "codebuff",
+};
+
+async function installAgentCli(agentId: string): Promise<{ ok: boolean; pkg: string; output?: string; error?: string }> {
+  const pkg = AGENT_INSTALL_PKG[agentId];
+  if (!pkg) return { ok: false, pkg: agentId, error: `No installer mapped for agent '${agentId}'` };
+  return new Promise((resolve) => {
+    const env = {
+      ...process.env,
+      PATH: [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        `${os.homedir()}/.volta/bin`,
+        `${os.homedir()}/.bun/bin`,
+        `${os.homedir()}/.pnpm/bin`,
+        process.env.PATH ?? "",
+      ].filter(Boolean).join(":"),
+    };
+    execFile("npm", ["i", "-g", pkg], { env, timeout: 5 * 60_000 }, (err, stdout, stderr) => {
+      if (err) {
+        resolve({ ok: false, pkg, output: `${stdout}\n${stderr}`, error: err.message });
+      } else {
+        resolve({ ok: true, pkg, output: `${stdout}\n${stderr}` });
+      }
+    });
+  });
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !!process.env["VITE_DEV_SERVER_URL"];
@@ -89,6 +123,7 @@ function registerIpc() {
   });
   ipcMain.handle(IPC.AGENT_KILL, async (_, sessionId: string) => agentHost.kill(sessionId));
   ipcMain.handle(IPC.SESSION_LIST, async () => agentHost.list());
+  ipcMain.handle(IPC.AGENT_INSTALL_CLI, async (_, agentId: string) => installAgentCli(agentId));
 
   ipcMain.handle(IPC.AGENT_LAUNCH_EXTERNAL, async (_, opts: ExternalAgentLaunchOptions) =>
     launchExternalAgent(opts),

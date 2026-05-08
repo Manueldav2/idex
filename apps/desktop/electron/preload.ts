@@ -46,6 +46,8 @@ const api = {
     input: (input: AgentInput): Promise<void> => ipcRenderer.invoke(IPC.AGENT_INPUT, input),
     resize: (r: AgentResize): Promise<void> => ipcRenderer.invoke(IPC.AGENT_RESIZE, r),
     kill: (sessionId: string): Promise<void> => ipcRenderer.invoke(IPC.AGENT_KILL, sessionId),
+    installCli: (agentId: string): Promise<{ ok: boolean; pkg: string; output?: string; error?: string }> =>
+      ipcRenderer.invoke(IPC.AGENT_INSTALL_CLI, agentId),
     list: (): Promise<Session[]> => ipcRenderer.invoke(IPC.SESSION_LIST),
     onOutput: (cb: (chunk: AgentOutputChunk) => void) => {
       const handler = (_: unknown, chunk: AgentOutputChunk) => cb(chunk);

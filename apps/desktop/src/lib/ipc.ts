@@ -46,6 +46,7 @@ declare global {
         resize: (r: AgentResize) => Promise<void>;
         kill: (sessionId: string) => Promise<void>;
         list: () => Promise<Session[]>;
+        installCli: (agentId: string) => Promise<{ ok: boolean; pkg: string; output?: string; error?: string }>;
         onOutput: (cb: (chunk: AgentOutputChunk) => void) => () => void;
         onState: (cb: (event: AgentStateEvent) => void) => () => void;
         launchExternal: (opts: ExternalAgentLaunchOptions) => Promise<ExternalAgentLaunchResult>;

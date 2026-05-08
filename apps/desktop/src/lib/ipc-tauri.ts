@@ -59,6 +59,14 @@ export async function installTauriBridge(): Promise<void> {
       resize: (r: AgentResize) => invoke<void>("agent_resize", { args: r }),
       kill: (sessionId: string) => invoke<void>("agent_kill", { sessionId }),
       list: () => invoke<Session[]>("agent_list"),
+      installCli: (agentId: string) =>
+        invoke<{ ok: boolean; pkg: string; output?: string; error?: string }>("agent_install_cli", {
+          agentId,
+        }).catch((e: unknown) => ({
+          ok: false,
+          pkg: agentId,
+          error: e instanceof Error ? e.message : String(e),
+        })),
       onOutput(cb) {
         let unsub: (() => void) | null = null;
         void listen<AgentOutputChunk>("agent:output", (event) => cb(event.payload)).then(

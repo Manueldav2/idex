@@ -94,6 +94,7 @@ export const IPC = {
   AGENT_STATE: "agent:state",
   AGENT_KILL: "agent:kill",
   AGENT_RESIZE: "agent:resize",
+  AGENT_INSTALL_CLI: "agent:install-cli",
   /**
    * Launch the agent CLI in the user's native Terminal.app instead of
    * embedding a PTY. The native terminal renders Claude Code with

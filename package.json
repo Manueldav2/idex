@@ -2,7 +2,7 @@
   "name": "idex",
   "version": "0.1.0",
   "private": true,
-  "description": "IDEX — Interactive Dev Experience. A Chromium-shelled cockpit that hosts your coding agent and curates a contextual scroll feed during the wait.",
+  "description": "IDEX \u2014 Interactive Dev Experience. A Chromium-shelled cockpit that hosts your coding agent and curates a contextual scroll feed during the wait.",
   "type": "module",
   "license": "MIT",
   "author": "Manny <info@devvcore.com>",
@@ -32,5 +32,13 @@
   },
   "devDependencies": {
     "typescript": "^5.7.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "keytar",
+      "node-pty"
+    ]
   }
 }

@@ -1,7 +1,23 @@
 import { spawn, type IPty } from "node-pty";
 import os from "node:os";
+import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { getAdapter } from "@idex/adapters";
+
+async function resolveCommand(cmd: string, pathEnv: string): Promise<string | null> {
+  if (path.isAbsolute(cmd) || cmd.startsWith("./") || cmd.startsWith("../")) return cmd;
+  const fs = await import("node:fs");
+  for (const dir of pathEnv.split(":").filter(Boolean)) {
+    const candidate = path.join(dir, cmd);
+    try {
+      await fs.promises.access(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch {
+      /* not here, keep looking */
+    }
+  }
+  return null;
+}
 import type {
   AgentSpawnOptions,
   AgentOutputChunk,
@@ -81,11 +97,21 @@ class AgentHost {
       opts.label ??
       `${adapter.displayName} · ${cwd.replace(os.homedir(), "~").split("/").slice(-2).join("/") || "~"}`;
 
-    console.log(`[idex] spawn session=${sessionId} agent=${opts.agentId} cwd=${cwd}`);
+    const resolvedCmd = await resolveCommand(command.cmd, env["PATH"] ?? "");
+    if (!resolvedCmd) {
+      const searched = (env["PATH"] ?? "").split(":").filter(Boolean).slice(0, 6).join(", ");
+      console.error(`[idex] '${command.cmd}' not found in PATH: ${searched}`);
+      return {
+        ok: false,
+        error: `'${command.cmd}' not found on PATH. Searched: ${searched}. Install with the command in the setup screen, then restart IDEX.`,
+      };
+    }
+
+    console.log(`[idex] spawn session=${sessionId} agent=${opts.agentId} cwd=${cwd} bin=${resolvedCmd}`);
 
     let pty: IPty;
     try {
-      pty = spawn(command.cmd, command.args, {
+      pty = spawn(resolvedCmd, command.args, {
         name: "xterm-256color",
         cols: 120,
         rows: 32,
@@ -97,7 +123,7 @@ class AgentHost {
       console.error(`[idex] spawn failed: ${msg}`);
       return {
         ok: false,
-        error: `Failed to spawn '${command.cmd}': ${msg}. Is it installed and on PATH?`,
+        error: `Failed to spawn '${command.cmd}' (${resolvedCmd}): ${msg}. Is it installed and on PATH?`,
       };
     }
 

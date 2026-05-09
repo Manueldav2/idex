@@ -392,21 +392,23 @@ export function SessionView({ data, active }: Props) {
     return () => window.clearTimeout(id);
   }, [cockpitMode, active, sessionId]);
 
-  // Show a clear exit overlay when the agent has stopped — Ink/opentui
-  // TUIs (Freebuff, Codebuff) leave cursor-positioning fragments on the
-  // canvas when they exit, which looks like a streaming glitch even
-  // though the session is dead. The overlay makes the state legible.
+  // Show a clear overlay only when the PTY actually exited or the
+  // adapter reported an error. NOT on "done" — that's just "agent
+  // finished a turn, awaiting your next input" and Claude Code emits
+  // it constantly. Using "exited" here matches pty.onExit in the main
+  // process so the overlay is legible without spuriously appearing
+  // every turn.
   const sessionState = data.session.state;
-  const isDone = sessionState === "done" || sessionState === "error";
+  const isDead = sessionState === "exited" || sessionState === "error";
 
   return (
     <div className="relative h-full w-full" style={{ display: active ? "block" : "none" }}>
       <div
         ref={containerRef}
         onClick={() => xtermRef.current?.focus()}
-        className={`h-full w-full px-3 pt-2 pb-1 overflow-hidden cursor-text ${isDone ? "opacity-30 pointer-events-none" : ""}`}
+        className={`h-full w-full px-3 pt-2 pb-1 overflow-hidden cursor-text ${isDead ? "opacity-30 pointer-events-none" : ""}`}
       />
-      {isDone && active && (
+      {isDead && active && (
         <SessionEndedOverlay
           sessionId={sessionId}
           agentId={data.session.agentId}
@@ -424,7 +426,7 @@ function SessionEndedOverlay({
 }: {
   sessionId: string;
   agentId: import("@idex/types").AgentId;
-  state: "done" | "error";
+  state: "exited" | "error";
 }) {
   const closeSession = useAgent((s) => s.closeSession);
   const createSession = useAgent((s) => s.createSession);

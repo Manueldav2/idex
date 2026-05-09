@@ -10,7 +10,7 @@
 
 export type AgentId = "claude-code" | "codex" | "freebuff" | "codebuff" | "shell";
 
-export type AgentState = "idle" | "spawning" | "generating" | "done" | "error";
+export type AgentState = "idle" | "spawning" | "generating" | "done" | "error" | "exited";
 
 export interface AgentSpawnOptions {
   /** If provided, spawn with this session id. Otherwise main generates one. */

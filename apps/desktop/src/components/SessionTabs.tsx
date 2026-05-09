@@ -19,6 +19,7 @@ function dotClass(state: AgentState): string {
     case "generating": return "bg-accent dot-halo-pulse";
     case "spawning": return "bg-accent dot-halo-pulse";
     case "error": return "bg-error";
+    case "exited": return "bg-text-tertiary/60";
     case "done": return "bg-text-secondary";
     default: return "bg-text-secondary/60";
   }

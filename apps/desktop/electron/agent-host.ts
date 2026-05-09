@@ -146,10 +146,12 @@ class AgentHost {
     pty.onExit(() => {
       console.log(`[idex] session ${sessionId} exited`);
       this.sessions.delete(sessionId);
-      // Natural exit (user typed `exit`, ctrl-D, etc.) → idle. Don't flash
-      // the tab red for graceful exits. Real spawn failures never reach
-      // onExit because they throw synchronously from pty.spawn().
-      this.cbs?.onState({ sessionId, state: "idle" });
+      // PTY exit is a distinct, terminal event — separate from the
+      // adapter's per-turn `done` boundary. The renderer uses this to
+      // show a "Session ended" overlay with Restart/Close. Without a
+      // dedicated state, the overlay had no way to tell "agent finished
+      // a turn, awaiting your next prompt" from "process is dead."
+      this.cbs?.onState({ sessionId, state: "exited" });
     });
 
     return {

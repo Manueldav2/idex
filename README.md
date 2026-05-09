@@ -5,7 +5,7 @@
     <a href="https://github.com/Manueldav2/idex/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Manueldav2/idex/ci.yml?branch=master&label=CI&style=flat-square" alt="CI"/></a>
     <img src="https://img.shields.io/github/license/Manueldav2/idex?style=flat-square" alt="MIT License" />
     <img src="https://img.shields.io/badge/platform-macOS-black?style=flat-square" alt="macOS" />
-    <img src="https://img.shields.io/badge/status-Phase%201-3D7BFF?style=flat-square" alt="Phase 1" />
+    <img src="https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Codebuff-3D7BFF?style=flat-square" alt="Agents" />
   </p>
 </div>
 

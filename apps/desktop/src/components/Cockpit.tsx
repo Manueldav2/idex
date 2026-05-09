@@ -379,6 +379,8 @@ export function Cockpit() {
           <div className="flex items-center gap-3.5">
             {mode === "agent" && (
               <>
+                <AgentStatusPill />
+                <span className="text-text-tertiary/60">·</span>
                 <FooterKey hint="New" chord="⌘T" />
                 <FooterKey hint="Close" chord="⌘W" />
                 <FooterKey hint="Switch" chord="⌘1-9" />
@@ -541,6 +543,36 @@ function shortenHome(p: string): string {
   const winMatch = p.match(/^([A-Z]:\\Users\\[^\\]+)(\\.*)?$/);
   if (winMatch) return `~${(winMatch[2] ?? "").replace(/\\/g, "/")}`;
   return p;
+}
+
+const AGENT_DISPLAY: Record<string, string> = {
+  "claude-code": "Claude Code",
+  codex: "Codex",
+  freebuff: "Freebuff",
+  codebuff: "Codebuff",
+  shell: "Shell",
+};
+
+function AgentStatusPill() {
+  const sessions = useAgent((s) => s.sessions);
+  const activeId = useAgent((s) => s.activeId);
+  const active = activeId ? sessions[activeId] : null;
+  if (!active) return null;
+  const state = active.session.state ?? "idle";
+  const agentName = AGENT_DISPLAY[active.session.agentId] ?? active.session.agentId;
+  const color =
+    state === "generating" || state === "spawning" ? "bg-accent" :
+    state === "done" ? "bg-emerald-400" :
+    state === "error" ? "bg-error" :
+    "bg-text-tertiary";
+  const isBusy = state === "generating" || state === "spawning";
+  return (
+    <span className="inline-flex items-center gap-1.5 text-text-secondary">
+      <span className={`size-1.5 rounded-full ${color} ${isBusy ? "animate-pulse" : ""}`} />
+      <span className="font-medium text-text-primary">{agentName}</span>
+      <span className="text-text-tertiary/80">{state}</span>
+    </span>
+  );
 }
 
 const AGENT_INSTALL: Record<string, { pkg: string; cmd: string }> = {

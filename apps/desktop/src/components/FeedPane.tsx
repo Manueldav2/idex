@@ -70,7 +70,7 @@ export function FeedPane() {
   if (!config.feedEnabled) {
     return (
       <aside
-        style={{ width: "40px", flexShrink: 0, background: X_BG, borderLeft: `1px solid ${X_DIVIDER}` }}
+        style={{ width: "40px", flexShrink: 0, background: "var(--color-ink-0)", borderLeft: "1px solid transparent" }}
         className="flex items-center justify-center"
       >
         <button
@@ -99,6 +99,12 @@ export function FeedPane() {
    */
   const PEEK_WIDTH = "72px";
   const isExpanded = state === "expanded";
+  // Feed-state-aware background: peek mode blends with cockpit chrome
+  // (no visible bezel) while expanded mode renders authentic X black.
+  // This is the compromise the user asked for — "blend the bar" while
+  // also "make it identical to X" when the feed is the focal point.
+  const surfaceBg = isExpanded ? X_BG : "var(--color-ink-0)";
+  const surfaceBorder = isExpanded ? X_DIVIDER : "transparent";
 
   return (
     <motion.aside
@@ -124,7 +130,8 @@ export function FeedPane() {
         right: isExpanded ? 0 : undefined,
         bottom: isExpanded ? 0 : undefined,
         zIndex: isExpanded ? 40 : "auto",
-        background: X_BG,
+        background: surfaceBg,
+        borderLeft: `1px solid ${surfaceBorder}`,
       }}
       className="flex flex-col overflow-hidden"
       onPointerDown={touch}

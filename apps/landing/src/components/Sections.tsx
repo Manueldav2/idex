@@ -110,7 +110,8 @@ export function AgentsSection() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.5 }}
-              className="grid md:grid-cols-[1fr_1.5fr_auto_auto] items-baseline gap-6 py-8 group hover:bg-ink-1/30 transition-colors px-2"
+              className="grid md:grid-cols-[1fr_1.5fr_auto_auto] items-baseline gap-6 py-8 group hover:bg-ink-1/40 transition-colors px-2 relative"
+              whileHover={{ x: 4 }}
             >
               <h3 className="display text-[clamp(28px,3vw,44px)] text-text-primary">{a.name}</h3>
               <p className="text-text-secondary text-[15px] leading-snug">{a.one}</p>
@@ -275,8 +276,22 @@ export function FaqSection() {
 
 export function FinalCta() {
   return (
-    <section className="py-40 md:py-56 rule-top atmosphere text-center">
-      <div className="max-w-[1400px] mx-auto px-8">
+    <section className="relative py-40 md:py-56 rule-top atmosphere text-center overflow-hidden">
+      {/* subtle accent ring behind the headline */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 flex items-center justify-center"
+      >
+        <div
+          className="size-[680px] rounded-full opacity-40 blur-[120px]"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(61,123,255,0.18), transparent 65%)",
+          }}
+        />
+      </div>
+
+      <div className="relative max-w-[1400px] mx-auto px-8">
         <div className="section-number mb-6">06 · the door</div>
         <h2 className="display font-normal text-text-primary text-[clamp(56px,9vw,168px)] leading-[0.9]">
           Bring a <span className="display-serif text-accent">prompt.</span>
@@ -287,7 +302,7 @@ export function FinalCta() {
         <div className="mt-12 flex items-center justify-center gap-5">
           <a
             href="https://github.com/Manueldav2/idex/releases/latest"
-            className="press-feedback inline-flex items-center gap-2 bg-paper text-ink-0 px-7 py-4 rounded-full text-[15px] font-semibold tracking-tight"
+            className="press-feedback inline-flex items-center gap-2 bg-paper text-ink-0 px-7 py-4 rounded-full text-[15px] font-semibold tracking-tight hover:brightness-95 transition-[filter,transform] hover:-translate-y-0.5 shadow-[0_8px_28px_rgba(255,255,255,0.08)]"
           >
             Install IDEX
             <span className="font-mono text-[12px] text-ink-0/50">↓</span>
@@ -301,6 +316,9 @@ export function FinalCta() {
             Read the source →
           </a>
         </div>
+        <p className="mt-10 text-[11px] font-mono uppercase tracking-[0.22em] text-text-tertiary/80">
+          ⌘ + click for the unsigned build · macOS may ask for permission first launch
+        </p>
       </div>
     </section>
   );

@@ -455,12 +455,13 @@ function AgentPicker({
   onChange: (id: AgentId) => void;
 }) {
   const agents: Array<{ id: AgentId; label: string; tagline: string }> = [
-    { id: "claude-code", label: "Claude Code", tagline: "Anthropic's CLI" },
-    { id: "codex", label: "Codex", tagline: "OpenAI's CLI" },
-    { id: "freebuff", label: "Freebuff", tagline: "Codebuff's CLI" },
+    { id: "claude-code", label: "Claude Code", tagline: "Anthropic" },
+    { id: "codex", label: "Codex", tagline: "OpenAI" },
+    { id: "freebuff", label: "Freebuff", tagline: "Free, ads" },
+    { id: "codebuff", label: "Codebuff", tagline: "Multi-file" },
   ];
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-2 gap-2">
       {agents.map((a) => {
         const active = a.id === value;
         return (

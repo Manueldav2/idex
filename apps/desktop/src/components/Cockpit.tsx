@@ -518,14 +518,31 @@ function FooterKey({ hint, chord }: { hint: string; chord: string }) {
 }
 
 function EmptyState({ onNew }: { onNew: () => void }) {
+  const selected = useSettings((s) => s.config.selectedAgent);
+  const agentName = AGENT_DISPLAY[selected] ?? "your agent";
   return (
     <div className="h-full flex items-center justify-center">
-      <button
-        onClick={onNew}
-        className="press-feedback text-text-secondary hover:text-text-primary text-[13px]"
-      >
-        Press <kbd className="px-1.5 py-0.5 rounded-[3px] border border-line font-mono text-[11px]">⌘T</kbd> to start a session
-      </button>
+      <div className="text-center space-y-5 max-w-[360px] px-6">
+        <div className="size-14 mx-auto rounded-full bg-ink-1 border border-line flex items-center justify-center">
+          <span className="display-serif text-[28px] text-accent leading-none">›</span>
+        </div>
+        <div className="space-y-2">
+          <h2 className="display font-normal text-text-primary text-[22px]">
+            Ready when you are.
+          </h2>
+          <p className="text-text-secondary text-[13px] leading-relaxed">
+            Start a session with {agentName} or pick a different agent from the
+            menu next to the new-tab button.
+          </p>
+        </div>
+        <button
+          onClick={onNew}
+          className="press-feedback inline-flex items-center gap-2 rounded-full border border-line bg-ink-1 hover:bg-ink-2 px-4 py-2 text-[13px] text-text-primary transition-colors"
+        >
+          New session
+          <kbd className="px-1.5 py-0.5 rounded-[3px] border border-line/70 font-mono text-[10.5px] text-text-secondary">⌘T</kbd>
+        </button>
+      </div>
     </div>
   );
 }

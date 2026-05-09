@@ -71,7 +71,9 @@ function redditToCard(d: RedditChild["data"], query: string): Card {
         // username seed. Not a real face, but an image that varies per
         // user instead of the default colored-letter circle that was
         // making the feed read as fake.
-        avatarUrl: `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(d.author)}&backgroundColor=0079D3,FF4500,FF8717`,
+        // Neutral palette so Reddit cards read like X handles, not
+        // "orange = Reddit" branding. Same seed → same avatar.
+        avatarUrl: `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(d.author)}&backgroundColor=2f3336,3D7BFF,A78BFA`,
       },
       createdAt: new Date(d.created_utc * 1000).toISOString(),
     },

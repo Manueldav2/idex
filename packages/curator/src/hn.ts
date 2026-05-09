@@ -64,7 +64,9 @@ function hnToCard(h: HNHit, query: string): Card {
         // poster always gets the same avatar. HN itself doesn't expose
         // avatars at all, so without this the card renders a generic
         // orange blob.
-        avatarUrl: `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(h.author)}&backgroundColor=FF6600,E2E2E2`,
+        // Neutral palette so HN cards read like X handles, not "orange =
+        // HN" branding. Same seed → same avatar across renders.
+        avatarUrl: `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(h.author)}&backgroundColor=2f3336,3D7BFF,5EEAD4`,
       },
       createdAt: h.created_at,
     },

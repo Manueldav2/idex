@@ -339,68 +339,36 @@ function TerminalColumn({ progress }: { progress: MotionValue<number> }) {
  * regardless of viewport width.
  */
 /**
- * Pixel-perfect SVG render of Claude Code's "Claudia" mascot. Each
- * cell is a 1×1 rect rasterised at the requested size — no font
- * fallback drift, no Unicode-block alignment fights. Pinkish body,
- * black dot eyes, lighter snout patch with two nostrils, two stubby
- * legs underneath. Reads identically across all browsers.
+ * The real Claude Code mascot — three rows of Unicode quarter-blocks
+ * exactly as the live `claude` TUI renders them. Captured 2026-05-08
+ * from `Claude Code v2.1.113` on Apple Silicon.
+ *
+ *   ▗ ▗   ▖ ▖
+ *
+ *     ▘▘ ▝▝
  */
-function ClaudiaPig({ size = 80 }: { size?: number }) {
-  const cell = size / 14;
-  // 14 wide × 11 tall pixel grid. Letters: . transparent · b body
-  // (#E8A98A) · k black eye · s lighter snout (#F2C7AB) · n black
-  // nostril · l darker outline (#C77D55).
-  const grid = [
-    "...lbbbbbbbbl..",
-    "..lbbbbbbbbbbl.",
-    ".lbbbbbbbbbbbbl",
-    "lbbkbbbbbbbkbbl",
-    "lbbbbssssssbbbl",
-    "lbbbbsnssnsbbbl",
-    "lbbbbssssssbbbl",
-    "lbbbbbbbbbbbbbl",
-    ".lbbbbbbbbbbbl.",
-    "..lbbl..lbbl...",
-    "..bbb...bbb....",
-  ];
-  const colors: Record<string, string> = {
-    b: "#E8A98A",
-    k: "#1a1a1a",
-    s: "#F4D1B6",
-    n: "#1a1a1a",
-    l: "#C77D55",
-  };
+function ClaudeMascot() {
   return (
-    <svg
-      width={size}
-      height={(size / 14) * grid.length}
-      viewBox={`0 0 ${size} ${(size / 14) * grid.length}`}
-      shapeRendering="crispEdges"
+    <pre
       aria-hidden="true"
+      className="select-none leading-[1.05] text-[14px]"
+      style={{
+        color: "#D87C4A",
+        fontFamily:
+          "'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Monaco, 'Courier New', monospace",
+      }}
     >
-      {grid.map((row, y) =>
-        Array.from(row).map((ch, x) =>
-          ch in colors ? (
-            <rect
-              key={`${x}-${y}`}
-              x={x * cell}
-              y={y * cell}
-              width={cell + 0.6}
-              height={cell + 0.6}
-              fill={colors[ch]}
-            />
-          ) : null,
-        ),
-      )}
-    </svg>
+{`▗ ▗   ▖ ▖
+
+  ▘▘ ▝▝`}
+    </pre>
   );
 }
 
 export function ClaudeWelcomePanel({
-  greeting = "Welcome back Manuel!",
   email = "you@example.com",
   cwd = "~/post-editor",
-  version = "v2.1.119",
+  version = "v2.1.113",
 }: {
   greeting?: string;
   email?: string;
@@ -410,37 +378,29 @@ export function ClaudeWelcomePanel({
   // Claude's prompt accent — the orange used by the real TUI's box
   // drawing. Approximated to a warm amber that reads against ink-0.
   const orange = "#D87C4A";
+  // Faithful boot block. Real Claude Code shows the mascot inline on
+  // the left of the version/model/path lines, then the tip block. No
+  // separate "Welcome back" greeting; that's just the version line.
   return (
     <div className="relative inline-block max-w-full" style={{ color: orange }}>
       <div className="rounded-md border px-5 pt-3 pb-4" style={{ borderColor: orange, color: orange }}>
-        <div className="flex items-center gap-2 -mt-5 -ml-2 mb-2 text-[11px]" style={{ color: orange }}>
+        <div className="flex items-center gap-2 -mt-5 -ml-2 mb-3 text-[11px]" style={{ color: orange }}>
           <span className="bg-ink-0 px-1.5">Claude Code {version}</span>
         </div>
-        <div className="grid grid-cols-[auto_1px_1fr] gap-x-6 items-start">
-          <div className="flex flex-col items-center gap-2 min-w-[210px]">
-            <div className="font-bold" style={{ color: "#fff" }}>{greeting}</div>
-            <ClaudiaPig size={84} />
-            <div className="text-[11px] leading-[1.55] text-center mt-1" style={{ color: orange }}>
-              Opus 4.7 · Claude Max
-              <br />
-              <span style={{ color: "#E8A98A" }}>{email}</span>'s Organization
-              <br />
+        <div className="grid grid-cols-[auto_1fr] gap-x-5 items-start">
+          <ClaudeMascot />
+          <div className="text-[11px] leading-[1.55]" style={{ color: orange }}>
+            <div style={{ color: "#fff" }}>Claude Code {version}</div>
+            <div>Opus 4.7 (1M context) with xhigh effort · Claude Max</div>
+            <div>
               <span style={{ color: "#E8A98A" }}>{cwd}</span>
             </div>
-          </div>
-
-          <div className="self-stretch w-px" style={{ background: `${orange}55` }} />
-
-          <div className="space-y-3 pt-0.5">
-            <div>
-              <div className="font-bold text-[11px]" style={{ color: "#fff" }}>Tips for getting started</div>
-              <div className="text-[11px]" style={{ color: orange }}>
-                Ask Claude to create a new app or clone a repository
-              </div>
+            <div className="mt-3" style={{ color: `${orange}AA` }}>
+              <span style={{ color: "#fff" }}>※ Tip: </span>
+              Ask Claude about your code, your stack, anything.
             </div>
-            <div>
-              <div className="font-bold text-[11px]" style={{ color: "#fff" }}>Recent activity</div>
-              <div className="text-[11px]" style={{ color: `${orange}AA` }}>No recent activity</div>
+            <div className="text-[10.5px] mt-1" style={{ color: `${orange}77` }}>
+              {email}
             </div>
           </div>
         </div>

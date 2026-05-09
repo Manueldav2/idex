@@ -30,8 +30,12 @@
 - [x] Opt-in anonymous telemetry (topicHash + cardId + action, no PII)
 
 ## 🚀 Phase 3 — Multi-agent + public release
-- [ ] Codex adapter (verify against live CLI)
-- [ ] Freebuff adapter (contribute upstream if needed)
+- [x] Codex adapter (live)
+- [x] Freebuff adapter (live)
+- [x] Codebuff adapter (live)
+- [x] Per-tab agent picker on the new-session button
+- [x] Auto-install missing CLIs from the launch-error banner
+- [x] Status pill in cockpit footer (agent + state)
 - [ ] Composio/X OAuth bridge on Tauri backend
 - [ ] Apple Developer ID + first notarization pass
 - [ ] Auto-update channel (Tauri updater)

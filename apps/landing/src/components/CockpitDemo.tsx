@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { ClaudeWelcomePanel } from "./ScrollThroughDemo";
 
 /**
  * A static-but-animated representation of the IDEX cockpit, displayed
@@ -22,17 +23,22 @@ export function CockpitDemo() {
           </span>
         </div>
 
-        <div className="flex-1 px-4 py-3 font-mono text-[11px] leading-relaxed overflow-hidden">
-          <div className="text-text-secondary mb-1">Claude Code · 14:32</div>
-          <div className="text-text-primary mb-2">
+        <div className="flex-1 px-4 py-3 font-mono text-[11px] leading-[1.55] overflow-hidden">
+          <ClaudeWelcomePanel
+            greeting="Welcome back Sam!"
+            email="you@example.com"
+            cwd="~/idex"
+          />
+
+          <div className="text-text-primary mt-4">
             <span className="text-accent">›</span> fix my cold-email deliverability — emails are going to spam
           </div>
-          <div className="text-text-primary opacity-90">
+          <div className="text-text-primary/90 mt-3">
             I'll diagnose this in three passes — DNS records, content, and sending reputation.
             <br />
             <span className="text-text-secondary">$ dig +short txt mailgun._domainkey.example.com</span>
             <br />
-            <span className="text-text-secondary">$ checking SPF, DKIM, DMARC...</span>
+            <span className="text-text-secondary">$ checking SPF, DKIM, DMARC…</span>
             <br />
             <br />
             Found 3 issues:
@@ -43,12 +49,12 @@ export function CockpitDemo() {
             <br />
             • DMARC policy is p=none (recommend p=quarantine)
             <br />
-            <span className="streaming-caret inline-block w-1.5 h-3 bg-accent ml-0.5" />
+            <span className="streaming-caret inline-block w-1.5 h-3 bg-accent ml-0.5 align-text-bottom" />
           </div>
         </div>
         <div className="border-t border-line px-4 py-2 flex items-center gap-2 text-[10px] text-text-secondary">
           <span className="text-accent">›</span>
-          <span className="opacity-50">agent is generating — esc to cancel...</span>
+          <span className="opacity-50">agent is generating — esc to cancel…</span>
         </div>
       </div>
 

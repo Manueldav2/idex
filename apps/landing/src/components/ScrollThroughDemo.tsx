@@ -338,35 +338,52 @@ function TerminalColumn({ progress }: { progress: MotionValue<number> }) {
  * Built with monospaced characters so it lines up like the real TUI
  * regardless of viewport width.
  */
-function ClaudeWelcomePanel() {
+export function ClaudeWelcomePanel({
+  greeting = "Welcome back Sam!",
+  email = "you@example.com",
+  cwd = "~/post-editor",
+  version = "v2.1.119",
+}: {
+  greeting?: string;
+  email?: string;
+  cwd?: string;
+  version?: string;
+}) {
   // Claude's prompt accent — the orange used by the real TUI's box
   // drawing. Approximated to a warm amber that reads against ink-0.
   const orange = "#D87C4A";
+  // The real Claude Code "Claudia" pig sprite — built from quarter-block
+  // glyphs so it scales like a pixel grid in any monospaced font. Matches
+  // the silhouette in the live TUI: round body, two black eye dots, snout
+  // line, two stubby legs.
+  const pig = `   ▄▄▄▄▄▄▄
+  ▟███████▙
+  █ ●   ● █
+  █ ─────── █
+  ▜███████▛
+   ▘▘   ▝▝`;
   return (
     <div className="relative inline-block max-w-full" style={{ color: orange }}>
       <div className="rounded-md border px-4 pt-3 pb-3.5" style={{ borderColor: orange, color: orange }}>
         <div className="flex items-center gap-2 -mt-5 -ml-1.5 mb-2 text-[11px]" style={{ color: orange }}>
-          <span className="bg-ink-0 px-1.5">Claude Code v2.1.119</span>
+          <span className="bg-ink-0 px-1.5">Claude Code {version}</span>
         </div>
         <div className="grid grid-cols-[auto_1px_1fr] gap-x-5 items-start">
           <div className="space-y-2 min-w-[210px]">
-            <div className="font-bold" style={{ color: "#fff" }}>Welcome back Myles!</div>
+            <div className="font-bold text-center" style={{ color: "#fff" }}>{greeting}</div>
             <pre
-              className="leading-[1.05] text-[10px] select-none"
+              className="leading-[1.05] text-[10px] select-none text-center"
               style={{ color: "#E8A98A", fontFamily: "'IBM Plex Mono', 'Menlo', monospace" }}
               aria-hidden
             >
-{`   ▄▄▄▄▄▄▄▄
-  ▐ ●    ● ▌
-  ▐  ────  ▌
-   ▀▘ ▐▌ ▝▀`}
+{pig}
             </pre>
             <div className="text-[11px] leading-[1.5]" style={{ color: orange }}>
               Opus 4.7 · Claude Max
               <br />
-              <span style={{ color: "#E8A98A" }}>mylesnosa@gmail.com</span>'s Organization
+              <span style={{ color: "#E8A98A" }}>{email}</span>'s Organization
               <br />
-              <span style={{ color: "#E8A98A" }}>~/post-editor</span>
+              <span style={{ color: "#E8A98A" }}>{cwd}</span>
             </div>
           </div>
 

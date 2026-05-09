@@ -1,9 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAgent } from "@/store/agent";
 import { useSettings } from "@/store/settings";
 import type { AgentId, AgentState } from "@idex/types";
-import { Plus, X } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
+
+const AGENT_PICKER_OPTIONS: Array<{ id: AgentId; label: string; sub: string }> = [
+  { id: "claude-code", label: "Claude Code", sub: "Anthropic" },
+  { id: "codex", label: "Codex", sub: "OpenAI" },
+  { id: "freebuff", label: "Freebuff", sub: "free, ad-supported" },
+  { id: "codebuff", label: "Codebuff", sub: "paid" },
+];
 
 function dotClass(state: AgentState): string {
   switch (state) {
@@ -24,6 +31,25 @@ export function SessionTabs() {
   const setActive = useAgent((s) => s.setActive);
   const createSession = useAgent((s) => s.createSession);
   const closeSession = useAgent((s) => s.closeSession);
+  const selectedAgent = useSettings((s) => s.config.selectedAgent);
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!pickerRef.current?.contains(e.target as Node)) setPickerOpen(false);
+    };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPickerOpen(false);
+    };
+    window.addEventListener("mousedown", onDocClick);
+    window.addEventListener("keydown", onEsc);
+    return () => {
+      window.removeEventListener("mousedown", onDocClick);
+      window.removeEventListener("keydown", onEsc);
+    };
+  }, [pickerOpen]);
 
   // Agent-mode tabs never include raw shell sessions — those live in the
   // integrated terminal panel inside editor mode. Filtering here keeps
@@ -31,9 +57,12 @@ export function SessionTabs() {
   // mixing AI and shell contexts.
   const agentOrder = order.filter((id) => sessions[id]?.session.agentId !== "shell");
 
-  const onNew = async () => {
-    const agentId: AgentId = "claude-code";
-    await createSession({ agentId });
+  // Default new sessions to whatever the user chose in Settings. The
+  // store's createSession will use this as a fallback, but passing it
+  // explicitly here means "+" always reflects the picker even if the
+  // store ever changes its default.
+  const onNew = async (agentId?: AgentId) => {
+    await createSession({ agentId: agentId ?? selectedAgent });
   };
 
   return (
@@ -72,15 +101,48 @@ export function SessionTabs() {
           </div>
         );
       })}
-      <button
-        onClick={() => void onNew()}
-        className="tt no-drag press-feedback shrink-0 inline-flex items-center gap-1 px-2 text-[13px] text-text-tertiary hover:text-text-primary hover:bg-ink-2 transition-colors"
-        data-tooltip="new session (⌘T)"
-        data-tooltip-pos="bottom"
-        aria-label="New Claude Code session"
-      >
-        <Plus className="size-3.5" />
-      </button>
+      <div ref={pickerRef} className="relative no-drag flex items-stretch shrink-0">
+        <button
+          onClick={() => void onNew()}
+          className="tt press-feedback shrink-0 inline-flex items-center px-2 text-[13px] text-text-tertiary hover:text-text-primary hover:bg-ink-2 transition-colors"
+          data-tooltip="new session (⌘T)"
+          data-tooltip-pos="bottom"
+          aria-label="New session"
+        >
+          <Plus className="size-3.5" />
+        </button>
+        <button
+          onClick={() => setPickerOpen((v) => !v)}
+          className="tt press-feedback shrink-0 inline-flex items-center px-1 text-text-tertiary hover:text-text-primary hover:bg-ink-2 transition-colors border-l border-line/40"
+          data-tooltip="pick agent"
+          data-tooltip-pos="bottom"
+          aria-label="Choose agent for new session"
+          aria-expanded={pickerOpen}
+        >
+          <ChevronDown className="size-3" />
+        </button>
+        {pickerOpen && (
+          <div className="absolute top-full right-0 mt-1 w-[220px] rounded border border-line bg-ink-1/98 backdrop-blur-md shadow-[0_8px_24px_rgba(0,0,0,0.35)] z-50 overflow-hidden">
+            {AGENT_PICKER_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => {
+                  setPickerOpen(false);
+                  void onNew(opt.id);
+                }}
+                className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[12px] transition-colors ${
+                  selectedAgent === opt.id
+                    ? "bg-accent/10 text-text-primary"
+                    : "text-text-secondary hover:bg-ink-2 hover:text-text-primary"
+                }`}
+              >
+                <span className="font-medium">{opt.label}</span>
+                <span className="text-[10.5px] text-text-tertiary">{opt.sub}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       {agentOrder.length === 0 && (
         <span className="text-[12px] text-text-secondary ml-2 self-center">
           Press <kbd className="px-1 py-0.5 rounded-[3px] border border-line text-[10.5px] font-mono">⌘T</kbd> to start a session

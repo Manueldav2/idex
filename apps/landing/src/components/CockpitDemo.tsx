@@ -23,38 +23,86 @@ export function CockpitDemo() {
           </span>
         </div>
 
-        <div className="flex-1 px-4 py-3 font-mono text-[11px] leading-[1.55] overflow-hidden">
+        <div className="flex-1 px-4 py-3 font-mono text-[11px] leading-[1.6] overflow-hidden text-text-primary">
           <ClaudeWelcomePanel
-            greeting="Welcome back Sam!"
+            greeting="Welcome back Manuel!"
             email="you@example.com"
             cwd="~/idex"
           />
 
-          <div className="text-text-primary mt-4">
-            <span className="text-accent">›</span> fix my cold-email deliverability — emails are going to spam
+          {/* Tip line under the banner — matches Claude Code's actual boot. */}
+          <div className="mt-3" style={{ color: "#7d6552" }}>
+            ※ Tip: Ask Claude about your code, your stack, anything.
           </div>
-          <div className="text-text-primary/90 mt-3">
-            I'll diagnose this in three passes — DNS records, content, and sending reputation.
-            <br />
-            <span className="text-text-secondary">$ dig +short txt mailgun._domainkey.example.com</span>
-            <br />
-            <span className="text-text-secondary">$ checking SPF, DKIM, DMARC…</span>
-            <br />
-            <br />
-            Found 3 issues:
-            <br />
-            • SPF includes too many lookups (12 of 10)
-            <br />
-            • DKIM key is 1024-bit (should be 2048)
-            <br />
-            • DMARC policy is p=none (recommend p=quarantine)
-            <br />
-            <span className="streaming-caret inline-block w-1.5 h-3 bg-accent ml-0.5 align-text-bottom" />
+
+          {/* User prompt — orange ›, white prompt text */}
+          <div className="mt-4" style={{ color: "#fff" }}>
+            <span style={{ color: "#D87C4A" }}>{"›"}</span>{" "}
+            <span>fix my cold-email deliverability — emails are going to spam</span>
+          </div>
+
+          {/* Tool-use block — Claude Code renders bullet bullets and grey body */}
+          <div className="mt-4 space-y-1">
+            <div className="text-text-secondary">
+              I'll diagnose this in three passes — DNS records, content, and sending reputation.
+            </div>
+            <div className="mt-2">
+              <span style={{ color: "#5EEAD4" }}>●</span>{" "}
+              <span style={{ color: "#fff" }}>Bash</span>
+              <span className="text-text-secondary">(dig +short txt mailgun._domainkey.example.com)</span>
+              <div className="ml-3 text-text-tertiary text-[10.5px] mt-0.5">
+                ⎿ k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBi…
+              </div>
+            </div>
+            <div className="mt-2">
+              <span style={{ color: "#5EEAD4" }}>●</span>{" "}
+              <span style={{ color: "#fff" }}>Read</span>
+              <span className="text-text-secondary">(spf-checker.ts, dmarc-policy.ts)</span>
+              <div className="ml-3 text-text-tertiary text-[10.5px] mt-0.5">
+                ⎿ Read 142 lines · 2 records flagged
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 text-text-secondary">Found 3 issues:</div>
+          <div className="mt-1 space-y-0.5">
+            <div>
+              <span style={{ color: "#FBBF24" }}>●</span>{" "}
+              SPF includes too many lookups <span className="text-text-tertiary">(12 of 10)</span>
+            </div>
+            <div>
+              <span style={{ color: "#FBBF24" }}>●</span>{" "}
+              DKIM key is 1024-bit <span className="text-text-tertiary">(should be 2048)</span>
+            </div>
+            <div>
+              <span style={{ color: "#FBBF24" }}>●</span>{" "}
+              DMARC policy is{" "}
+              <span style={{ color: "#fff" }}>p=none</span>
+              <span className="text-text-tertiary"> (recommend p=quarantine)</span>
+            </div>
+          </div>
+
+          <div className="mt-4 inline-flex items-center gap-2" style={{ color: "#9ca3af" }}>
+            <span className="dot-soft-pulse inline-block size-1.5 rounded-full bg-accent" />
+            <span className="italic">Drafting fixes…</span>
+            <span className="text-text-tertiary text-[10px]">(esc to interrupt)</span>
           </div>
         </div>
-        <div className="border-t border-line px-4 py-2 flex items-center gap-2 text-[10px] text-text-secondary">
-          <span className="text-accent">›</span>
-          <span className="opacity-50">agent is generating — esc to cancel…</span>
+
+        {/* Composer footer — Claude Code's actual prompt bar */}
+        <div className="border-t border-line bg-ink-0 px-4 py-2.5 font-mono text-[11px]">
+          <div className="flex items-baseline gap-2" style={{ color: "#fff" }}>
+            <span style={{ color: "#D87C4A" }}>{"›"}</span>
+            <span className="opacity-60">apply the three fixes you suggested</span>
+            <span className="streaming-caret inline-block w-[6px] h-[12px] bg-accent ml-0.5 align-text-bottom" />
+          </div>
+          <div className="mt-1.5 flex items-center gap-3 text-[9.5px]" style={{ color: "#7d6552" }}>
+            <span>↵ send</span>
+            <span>·</span>
+            <span>shift+tab cycle modes</span>
+            <span>·</span>
+            <span>/help commands</span>
+          </div>
         </div>
       </div>
 

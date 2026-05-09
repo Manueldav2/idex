@@ -543,9 +543,9 @@ function XRightRail({
         <h2 className="px-4 pb-2 pt-3 text-[20px] font-extrabold leading-6">
           What&apos;s happening
         </h2>
-        <TrendRow eyebrow="Live" title="Curated while your agent works" meta={isLoading ? "Updating now" : "Ready"} />
-        <TrendRow eyebrow="Sources" title={`${total} posts in this feed`} meta={`${mix.hn} HN · ${mix.reddit} Reddit · ${mix.starter + mix.other} seed`} />
-        <TrendRow eyebrow="Developer news" title="Context matched to your prompt" meta="Personalized by IDEX" />
+        <TrendRow eyebrow="Trending in Tech" title="Curated by IDEX" meta={isLoading ? "Updating now…" : `${total} posts`} />
+        <TrendRow eyebrow="Sources" title={`${mix.hn} from Hacker News`} meta={`${mix.reddit} Reddit · ${mix.starter + mix.other} other`} />
+        <TrendRow eyebrow="For you" title="Adjacent to your prompt" meta="Refreshes as you type" />
       </section>
 
       <section

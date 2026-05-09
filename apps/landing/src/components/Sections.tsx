@@ -5,7 +5,7 @@ export function HowItWorksSection() {
     {
       num: "01",
       title: "You prompt.",
-      body: "Type whatever you would type in Claude Code, Codex, or Freebuff. Your agent lives inside a clean cockpit with its own shortcuts.",
+      body: "Type whatever you'd type in Claude Code, Codex, Codebuff, or Freebuff. Your agent lives inside a clean cockpit with its own shortcuts.",
     },
     {
       num: "02",
@@ -78,13 +78,19 @@ export function AgentsSection() {
       name: "Codex",
       one: "OpenAI, multi step plans.",
       install: "npm i -g @openai/codex",
-      status: "Next.",
+      status: "Live.",
+    },
+    {
+      name: "Codebuff",
+      one: "Multi file edits with shared context.",
+      install: "npm i -g codebuff",
+      status: "Live.",
     },
     {
       name: "Freebuff",
       one: "Codebuff, free and ad supported.",
       install: "npm i -g freebuff",
-      status: "After that.",
+      status: "Live.",
     },
   ];
   return (

@@ -258,12 +258,10 @@ function TerminalColumn({ progress }: { progress: MotionValue<number> }) {
   return (
     <div className="flex-1 min-w-0 flex flex-col bg-ink-0">
       <div className="flex-1 min-h-0 overflow-hidden px-5 py-4 font-mono text-[12px] leading-[1.6] text-text-primary">
-        {/* Ambient preamble — always visible so the terminal is never
-            blank. Looks like a real Claude Code boot. */}
-        <div className="text-text-tertiary">claude code 2.5 · sonnet 4.6 · ready</div>
-        <div className="text-text-tertiary/70 mt-0.5">
-          tip: type <span className="text-text-secondary">/help</span> to see commands
-        </div>
+        {/* Authentic Claude Code TUI welcome panel — bordered box with
+            the version, greeting + pixel pig, model line, recent
+            activity column. Matches the actual `claude` boot screen. */}
+        <ClaudeWelcomePanel />
 
         {/* Empty-line idle caret — visible during stage 0 so the terminal
             "breathes" before the user types. */}
@@ -328,6 +326,65 @@ function TerminalColumn({ progress }: { progress: MotionValue<number> }) {
         <span className="ml-auto opacity-60 truncate">
           ⌘T new · ⌘K palette
         </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Faithful render of Claude Code's actual welcome banner — the orange
+ * box-drawing border, version line, greeting, pixel-pig avatar, model
+ * line, and right-column "Tips for getting started" + "Recent activity".
+ * Built with monospaced characters so it lines up like the real TUI
+ * regardless of viewport width.
+ */
+function ClaudeWelcomePanel() {
+  // Claude's prompt accent — the orange used by the real TUI's box
+  // drawing. Approximated to a warm amber that reads against ink-0.
+  const orange = "#D87C4A";
+  return (
+    <div className="relative inline-block max-w-full" style={{ color: orange }}>
+      <div className="rounded-md border px-4 pt-3 pb-3.5" style={{ borderColor: orange, color: orange }}>
+        <div className="flex items-center gap-2 -mt-5 -ml-1.5 mb-2 text-[11px]" style={{ color: orange }}>
+          <span className="bg-ink-0 px-1.5">Claude Code v2.1.119</span>
+        </div>
+        <div className="grid grid-cols-[auto_1px_1fr] gap-x-5 items-start">
+          <div className="space-y-2 min-w-[210px]">
+            <div className="font-bold" style={{ color: "#fff" }}>Welcome back Myles!</div>
+            <pre
+              className="leading-[1.05] text-[10px] select-none"
+              style={{ color: "#E8A98A", fontFamily: "'IBM Plex Mono', 'Menlo', monospace" }}
+              aria-hidden
+            >
+{`   ▄▄▄▄▄▄▄▄
+  ▐ ●    ● ▌
+  ▐  ────  ▌
+   ▀▘ ▐▌ ▝▀`}
+            </pre>
+            <div className="text-[11px] leading-[1.5]" style={{ color: orange }}>
+              Opus 4.7 · Claude Max
+              <br />
+              <span style={{ color: "#E8A98A" }}>mylesnosa@gmail.com</span>'s Organization
+              <br />
+              <span style={{ color: "#E8A98A" }}>~/post-editor</span>
+            </div>
+          </div>
+
+          <div className="self-stretch w-px" style={{ background: `${orange}55` }} />
+
+          <div className="space-y-3 pt-0.5">
+            <div>
+              <div className="font-bold text-[11px]" style={{ color: "#fff" }}>Tips for getting started</div>
+              <div className="text-[11px]" style={{ color: orange }}>
+                Ask Claude to create a new app or clone a repository
+              </div>
+            </div>
+            <div>
+              <div className="font-bold text-[11px]" style={{ color: "#fff" }}>Recent activity</div>
+              <div className="text-[11px]" style={{ color: `${orange}AA` }}>No recent activity</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

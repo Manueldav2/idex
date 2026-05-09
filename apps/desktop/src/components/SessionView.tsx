@@ -392,12 +392,80 @@ export function SessionView({ data, active }: Props) {
     return () => window.clearTimeout(id);
   }, [cockpitMode, active, sessionId]);
 
+  // Show a clear exit overlay when the agent has stopped — Ink/opentui
+  // TUIs (Freebuff, Codebuff) leave cursor-positioning fragments on the
+  // canvas when they exit, which looks like a streaming glitch even
+  // though the session is dead. The overlay makes the state legible.
+  const sessionState = data.session.state;
+  const isDone = sessionState === "done" || sessionState === "error";
+
   return (
-    <div
-      ref={containerRef}
-      onClick={() => xtermRef.current?.focus()}
-      style={{ display: active ? "block" : "none" }}
-      className="h-full w-full px-3 pt-2 pb-1 overflow-hidden cursor-text"
-    />
+    <div className="relative h-full w-full" style={{ display: active ? "block" : "none" }}>
+      <div
+        ref={containerRef}
+        onClick={() => xtermRef.current?.focus()}
+        className={`h-full w-full px-3 pt-2 pb-1 overflow-hidden cursor-text ${isDone ? "opacity-30 pointer-events-none" : ""}`}
+      />
+      {isDone && active && (
+        <SessionEndedOverlay
+          sessionId={sessionId}
+          agentId={data.session.agentId}
+          state={sessionState}
+        />
+      )}
+    </div>
+  );
+}
+
+function SessionEndedOverlay({
+  sessionId,
+  agentId,
+  state,
+}: {
+  sessionId: string;
+  agentId: import("@idex/types").AgentId;
+  state: "done" | "error";
+}) {
+  const closeSession = useAgent((s) => s.closeSession);
+  const createSession = useAgent((s) => s.createSession);
+  const lastError = useAgent((s) => s.sessions[sessionId]?.lastError);
+
+  const restart = async () => {
+    await closeSession(sessionId);
+    await createSession({ agentId });
+  };
+
+  const dismiss = () => {
+    void closeSession(sessionId);
+  };
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div className="pointer-events-auto rounded-xl border border-line bg-ink-1/95 backdrop-blur-md px-6 py-5 max-w-sm text-center space-y-3 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+        <div className="flex items-center justify-center gap-2 text-[12px] font-mono uppercase tracking-[0.18em] text-text-tertiary">
+          <span className={`size-1.5 rounded-full ${state === "error" ? "bg-error" : "bg-text-secondary"}`} />
+          Session ended
+        </div>
+        <p className="text-[13px] text-text-secondary leading-relaxed">
+          {state === "error"
+            ? lastError ?? "The agent exited with an error."
+            : "The agent finished or exited."}
+        </p>
+        <div className="flex items-center justify-center gap-2 pt-1">
+          <button
+            onClick={() => void restart()}
+            className="press-feedback inline-flex items-center gap-1.5 rounded-full border border-line bg-ink-2 hover:bg-ink-2/70 px-3 py-1.5 text-[12px] text-text-primary transition-colors"
+          >
+            Restart
+          </button>
+          <button
+            onClick={dismiss}
+            className="press-feedback inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-text-tertiary hover:text-text-secondary transition-colors"
+          >
+            Close tab
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

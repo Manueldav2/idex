@@ -34,3 +34,10 @@ export type {
   TelemetryOptions,
 } from "./telemetry.js";
 export type { CuratorInput, CuratorPlan } from "./types.js";
+export {
+  deriveGoal,
+  detectFacet,
+  synthesizeGoalQueries,
+  goalContextString,
+} from "./goal.js";
+export type { SessionGoal, IntentFacet, DeriveGoalOptions } from "./goal.js";

@@ -8,6 +8,7 @@ import {
   planFromContext,
   sendTelemetry,
   type CuratorCredentials,
+  type SessionGoal,
   type TelemetryAction,
 } from "@idex/curator";
 import { ipc } from "@/lib/ipc";
@@ -24,6 +25,19 @@ interface FeedStore {
   /** Short natural-language label of what the curator thinks the user is doing. */
   intent: string | null;
   /**
+   * The long-horizon goal derived from the WHOLE session, kept sticky
+   * across refreshes. This is what stops the curator forgetting that the
+   * user has spent a month building an agent the moment they type a
+   * low-signal message like "make it faster, it's shit".
+   */
+  goal: SessionGoal | null;
+  /**
+   * Explicit user-stated goal (the `/goal` channel). When set it
+   * outranks the inferred goal. Wire a `/goal <text>` command to
+   * `setStatedGoal`.
+   */
+  statedGoal: string | null;
+  /**
    * Wall-clock of the last time the user actively engaged with the feed
    * (clicked a card, scrolled, toggled expand manually). Used to guard the
    * auto-collapse so that a just-finished agent doesn't yank the surface
@@ -33,6 +47,8 @@ interface FeedStore {
   lastInteractionTs: number;
   bindToAgent: () => () => void;
   refresh: (sessionId?: string) => void;
+  /** Set (or clear) the explicit goal and re-curate against it. */
+  setStatedGoal: (goal: string | null) => void;
   setState: (state: FeedState) => void;
   /** Call whenever the user visibly interacts with the feed surface. */
   touch: () => void;
@@ -83,6 +99,8 @@ export const useFeed = create<FeedStore>((set, get) => ({
   isLoading: false,
   topics: [],
   intent: null,
+  goal: null,
+  statedGoal: null,
   lastInteractionTs: 0,
 
   bindToAgent() {
@@ -137,7 +155,13 @@ export const useFeed = create<FeedStore>((set, get) => ({
   refresh(sessionId) {
     const activeId = sessionId ?? useAgent.getState().activeId;
     const session = activeId ? useAgent.getState().sessions[activeId] : null;
+    // recentEvents = the immediate signal (what they're saying now).
     const events = session?.events.slice(-12) ?? [];
+    // allEvents = the WHOLE session (the store keeps up to 200). The goal
+    // is derived from this — recurrence across a long session is the
+    // thing a 12-event window can never see, which is exactly why the
+    // curator used to forget what the user was building.
+    const allEvents = session?.events ?? [];
 
     // The workspace folder name gives the curator an extra signal — e.g.
     // a workspace called "nova-ai-dashboard" strongly suggests the user
@@ -146,7 +170,14 @@ export const useFeed = create<FeedStore>((set, get) => ({
     const projectHint = workspacePath
       ? workspacePath.split("/").filter(Boolean).slice(-1)[0] ?? null
       : null;
-    const curatorInput = { recentEvents: events, projectHint: projectHint ?? undefined };
+    const curatorInput = {
+      recentEvents: events,
+      allEvents,
+      // Carry the previous goal so the domain stays sticky across refreshes.
+      goal: get().goal ?? undefined,
+      statedGoal: get().statedGoal ?? undefined,
+      projectHint: projectHint ?? undefined,
+    };
     const curatorOn = useSettings.getState().config.curatorEnabled;
 
     // Extract plan topics synchronously for the peek-strip label, even while
@@ -174,6 +205,7 @@ export const useFeed = create<FeedStore>((set, get) => ({
       isLoading: curatorOn,
       topics,
       intent: plan.intent,
+      goal: plan.goal ?? s.goal,
     }));
 
     if (!curatorOn) return;
@@ -203,6 +235,7 @@ export const useFeed = create<FeedStore>((set, get) => ({
           isLoading: false,
           topics: [...livePlan.directTopics, ...livePlan.adjacentTopics].slice(0, 6),
           intent: livePlan.intent,
+          goal: livePlan.goal ?? s.goal,
         }));
         // Fire-and-forget impression telemetry. No-ops when not opted in.
         const { curatorTelemetryEnabled } = useSettings.getState().config;
@@ -231,6 +264,15 @@ export const useFeed = create<FeedStore>((set, get) => ({
         set({ isLoading: false });
       }
     })();
+  },
+
+  setStatedGoal(goal) {
+    // The `/goal` channel. An explicit goal outranks inference and is the
+    // strongest possible anchor — set it, then re-curate immediately so
+    // the feed reflects the goal without waiting for the next agent turn.
+    const trimmed = goal?.trim() || null;
+    set({ statedGoal: trimmed });
+    get().refresh();
   },
 
   setState(state) {

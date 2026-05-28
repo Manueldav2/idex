@@ -8,33 +8,45 @@ import { searchX } from "./x.js";
 import { planQueriesWithAgent } from "./agent-planner.js";
 import { callGLM46 } from "./openrouter.js";
 import { searchTweets } from "./composio.js";
+import {
+  deriveGoal,
+  synthesizeGoalQueries,
+  goalContextString,
+  type SessionGoal,
+} from "./goal.js";
 
 const STOP_WORDS = new Set([
   // Function words
   "the","a","an","of","and","or","but","is","are","was","were","be","been",
   "to","from","with","without","for","in","on","at","as","by","this","that",
   "i","me","my","we","you","your","it","its","do","does","did","done","ok",
+  // Greetings + conversational address — when a user says "hey claude,
+  // what are the best agents out there" the curator was picking up "hey"
+  // and "claude" as top topics, then surfacing "mcp · hey" peek labels.
+  // Greetings are NEVER a topic.
+  "hey","hi","hello","yo","sup","listen","alright","okay","thanks","thank",
   // Imperative and filler verbs — "find me", "show me", "give me" are
-  // conversational frames, not search signal. Dropping them means
-  // "find me the best claude code skills" queries as "claude code
-  // skills" — the thing the user actually wants to find.
+  // conversational frames, not search signal.
   "let","make","build","fix","help","need","want","please","try","then",
   "find","show","give","get","put","take","run","call","check","see","look",
   "use","using","used","go","goes","going","went","come","came",
   "add","tell","ask","say","said","know","knows","think","thinks","thought",
   "best","better","good","great","awesome",
-  // Generic grammar / filler. NB: we deliberately do NOT include "code",
-  // "app", "file", "page" — they're essential compound-word roots
-  // ("claude code", "next.js app router", "file watcher"). Dropping
-  // them collapsed "claude code skills" into "claude skills" which
-  // returned Claude-the-AI-generic junk.
-  "why","how","what","where","when","who",
+  // Generic grammar / filler.
+  "why","how","what","where","when","who","out","are","were",
   "like","can","will","would","should","could","just","really","maybe",
   "thing","stuff","some","any","all","lots","more","most","less","same",
   "about","into","onto","over","under","than","also","here","there","now",
   "one","two","three","first","last","next","still","already","even","only",
   // Ambient filler
   "very","super","actually","basically","probably","definitely","kinda",
+  // Affect / frustration — these carry intent (handled by the goal
+  // facet detector) but are NEVER topics. Without this, "it's shit,
+  // make it faster" surfaced "shit" as a top topic and a search query.
+  "shit","sucks","crap","garbage","trash","terrible","awful","ugh",
+  "damn","hate","broken","slow","fast","faster","slower","annoying",
+  // Conversational filler — "hmm not sure" is not a search query.
+  "not","sure","hmm","yeah","nah","honestly","gonna","wanna","lemme",
 ]);
 
 /**
@@ -68,6 +80,39 @@ function findProtectedPhrases(text: string): string[] {
  * shape (multi-word queries don't get destroyed) but drops a leaked brand
  * token without turning into a single-word query.
  */
+/**
+ * Single-word queries are query bombs — "agents" matches FBI agents,
+ * ICE agents, user-agent strings, travel agents, real-estate agents,
+ * etc. We never want them to reach HN/Reddit/X verbatim. This expands
+ * a single token into 3 disambiguating queries that always pair the
+ * token with an AI/dev qualifier or comparison frame.
+ *
+ *   "agents" → ["ai agents 2026", "best ai agents", "agent frameworks comparison"]
+ *   "rag"    → ["rag pipeline 2026",  "best rag",       "rag retrieval evaluation"]
+ *
+ * Multi-word queries pass through untouched. This is the single most
+ * important quality fix in the deterministic path because without it
+ * the curator surfaces FBI / immigration / browser-string content
+ * whenever the user mentions a generic tech word.
+ */
+function expandSingleWord(q: string): string[] {
+  const trimmed = q.trim();
+  if (trimmed.split(/\s+/).length >= 2) return [trimmed];
+  const t = trimmed.toLowerCase();
+  // Generic tech tokens that desperately need a disambiguating frame.
+  const AI_TOKEN_QUALIFIERS = new Set([
+    "agent","agents","llm","llms","rag","mcp","prompt","prompts",
+    "embedding","embeddings","model","models","copilot","copilots",
+    "assistant","assistants","tool","tools","orchestration",
+  ]);
+  if (AI_TOKEN_QUALIFIERS.has(t)) {
+    return [`ai ${t} 2026`, `best ai ${t}`, `${t} comparison`];
+  }
+  // Dev-flavoured fallback for any other single word — pair with year
+  // and the developer-tools frame so we don't get news-category junk.
+  return [`${t} 2026`, `best ${t} for developers`, `${t} comparison`];
+}
+
 function sanitizeQuery(q: string): string {
   const cleaned = q
     .split(/\s+/)
@@ -109,8 +154,15 @@ const DEFAULT_AMBIENT_TOPICS = [
  * Tokens that ARE the product/brand itself — never query for these. When
  * a developer is building IDEX itself, "IDEX" leaks into queries and the
  * feed fills with IDEX Metals (mining stock), Beretta IDEX (firearms), and
- * other unrelated namespace collisions. Same for the agent product names
- * if they get repeated as filler ("ok claude, please…").
+ * other unrelated namespace collisions.
+ *
+ * NB: we deliberately do NOT exclude "agent"/"agents" here anymore. For
+ * users building agentic systems, "agent" IS the topic, not the brand —
+ * stripping it collapsed queries like "slack notifications agent" into
+ * "slack notifications" and the feed missed the entire agentic ecosystem
+ * (LangChain, AutoGen, CrewAI, OpenAI Assistants, etc.) the user wanted.
+ * "agent" only becomes brand-collision-prone when paired with "idex" /
+ * "cockpit", which the surrounding token filter still catches.
  */
 const SELF_BRAND_TOKENS = new Set([
   "idex",
@@ -119,9 +171,20 @@ const SELF_BRAND_TOKENS = new Set([
   "moda",
   "trygravity",
   "bun",
-  // The setup-flow phrases that frequently appear in early conversation
-  "agent",
-  "agents",
+]);
+
+/**
+ * Conversational-context tokens — words that get injected by the AGENT
+ * (Claude) into every response but rarely represent the user's actual
+ * research interest. We keep them iff the USER explicitly typed them,
+ * and drop them otherwise. Lets "hey claude what are best agents" turn
+ * into agent-comparison queries (right), while "what's the best mcp
+ * server" still surfaces MCP content (the user asked about MCP).
+ */
+const AGENT_CONTEXT_TOKENS = new Set([
+  "claude",
+  "anthropic",
+  "mcp",
 ]);
 
 /**
@@ -164,13 +227,27 @@ function extractQuoted(text: string): string[] {
   return out;
 }
 
+/**
+ * Strip conversational greeting + addressee at the start of a prompt.
+ * "hey claude, what are best agents" → "what are best agents".
+ * Without this, the addressee ("claude") leaks into the topic
+ * extraction and the curator chases the user's own agent as a
+ * research topic.
+ */
+function stripGreetingAddress(text: string): string {
+  return text.replace(
+    /^\s*(?:hey|hi|hello|yo|sup|listen)\s+\w+([\s,;:.\-—]+|$)/i,
+    "",
+  );
+}
+
 function naiveTopics(events: ContextEvent[], maxTopics = 8): string[] {
   // Separate user vocabulary from agent vocabulary — tokens that appear
   // in BOTH are strong topic signal (shared vocabulary between user and
   // the agent is the thing the conversation is actually about).
   const userText = events
     .filter((e) => e.kind === "user_input")
-    .map((e) => ("text" in e ? e.text : ""))
+    .map((e) => ("text" in e ? stripGreetingAddress(e.text) : ""))
     .join(" ");
   const agentText = events
     .filter((e) => e.kind === "agent_chunk" || e.kind === "agent_done")
@@ -204,6 +281,11 @@ function naiveTopics(events: ContextEvent[], maxTopics = 8): string[] {
     if (STOP_WORDS.has(tok)) continue;
     if (SELF_BRAND_TOKENS.has(tok)) continue;
     if (tok.length < 3) continue;
+    // Skip Claude/Anthropic/MCP unless the user actually typed them.
+    // Without this guard the curator picks up "MCP" from Claude's
+    // responses and surfaces MCP cards even when the user asked about
+    // something else entirely.
+    if (AGENT_CONTEXT_TOKENS.has(tok) && !userTokens.has(tok)) continue;
     const isShared = userTokens.has(tok) && agentTokens.has(tok);
     const bump = isShared ? 3 : 1;
     counts.set(tok, (counts.get(tok) ?? 0) + bump);
@@ -231,68 +313,89 @@ function naiveTopics(events: ContextEvent[], maxTopics = 8): string[] {
 }
 
 export function planFromContext(input: CuratorInput): CuratorPlan {
+  // Derive the long-horizon goal from the FULL history when available
+  // (the agent store keeps up to 200 events). Recurrence across turns is
+  // the goal signal, and a 12-event window is too short to see it. The
+  // previous goal (if any) is folded back in so the domain stays sticky
+  // across refreshes even as the window slides past the early turns.
+  const allEvents = input.allEvents ?? input.recentEvents;
+  const goal: SessionGoal = deriveGoal(allEvents, {
+    prev: input.goal ?? null,
+    statedGoal: input.statedGoal ?? input.goal?.statedGoal ?? null,
+  });
+
   const topics = naiveTopics(input.recentEvents);
   const lastUserPrompt =
     [...input.recentEvents].reverse().find((e) => e.kind === "user_input");
-  const intent = lastUserPrompt && "text" in lastUserPrompt
-    ? lastUserPrompt.text.slice(0, 240)
-    : "exploring code";
+  const intent = goal.statedGoal
+    ? goal.statedGoal.slice(0, 240)
+    : lastUserPrompt && "text" in lastUserPrompt
+      ? lastUserPrompt.text.slice(0, 240)
+      : "exploring code";
 
   // Build real search queries, not single tokens.
-  //
-  // The old plan returned single words like "claude" which matched every
-  // generic Anthropic blog post. If the user typed "best claude code
-  // skills and design skills" we want the search engines to see that
-  // whole phrase — HN's Algolia, Reddit's JSON search and Bluesky's
-  // searchPosts all do well with multi-word queries and badly with bare
-  // keywords.
   const promptText =
-    lastUserPrompt && "text" in lastUserPrompt ? lastUserPrompt.text.trim() : "";
-  const smartQueries: string[] = [];
+    lastUserPrompt && "text" in lastUserPrompt
+      ? stripGreetingAddress(lastUserPrompt.text).trim()
+      : "";
 
-  // 1. Protected phrases first — if the prompt contains "claude code",
-  //    "app router", etc., surface them as highest-priority queries
-  //    before any tokenisation can break them apart. These are the
-  //    single best query form because they're exact phrases the user
-  //    used and they map to real search terms on X/HN/Reddit.
+  // --- (A) Literal queries from the CURRENT message (what they're saying
+  //     right now). Protected phrases are explicit user references and
+  //     always rank first. ---
   const protectedInPrompt = findProtectedPhrases(promptText);
-  for (const p of protectedInPrompt) smartQueries.push(p);
+  const literalQueries: string[] = [];
+  let currentContentWordCount = 0;
 
   if (promptText.length >= 4) {
-    // 2. Extract content words and pair each with the protected phrase
-    //    it was near, so "find me the best claude code skills and
-    //    design skills" yields "claude code skills" (protected phrase
-    //    + next content noun) rather than "skills best".
     const words = promptText
       .replace(/[^\p{L}\p{N}\s#-]/gu, " ")
       .trim()
       .split(/\s+/)
       .filter((w) => w.length >= 2 && !STOP_WORDS.has(w.toLowerCase()));
+    currentContentWordCount = words.length;
 
     // "claude code skills", "claude code design" etc.
     for (const phrase of protectedInPrompt) {
       for (const w of words) {
         const wl = w.toLowerCase();
         if (phrase.split(/\s+/).includes(wl)) continue;
-        smartQueries.push(`${phrase} ${w}`);
+        literalQueries.push(`${phrase} ${w}`);
       }
     }
 
-    // 3. Full trimmed prompt (capped) as a catch-all phrase query. X's
-    //    phrase-quoting will do the right thing with this; HN/Reddit
-    //    tokenise on it naturally.
+    // Full trimmed prompt (capped) as a catch-all phrase query.
     const trimmedWords = words.slice(0, 6);
-    if (trimmedWords.length >= 2) smartQueries.push(trimmedWords.join(" "));
+    if (trimmedWords.length >= 2) literalQueries.push(trimmedWords.join(" "));
   }
   if (topics.length >= 2 && protectedInPrompt.length === 0) {
-    smartQueries.push(`${topics[0]} ${topics[1]}`);
+    literalQueries.push(`${topics[0]} ${topics[1]}`);
   }
-  // Never just a single word — single-token queries are what produced
-  // "skills" matching resumes and tomodachi life. Only append them as
-  // a last resort when we have truly nothing else.
-  if (smartQueries.length === 0) {
-    smartQueries.push(...topics.slice(0, 3));
-  }
+
+  // --- (B) Conceptual queries from the GOAL × current FACET. This is the
+  //     "help what they're doing, not the keywords" half: "make my agent
+  //     faster, it's shit" → "ai agent latency reduction",
+  //     "reduce llm agent token cost", not a literal search of the
+  //     sentence. Also the "help them learn" half (ecosystem queries). ---
+  const goalQueries = synthesizeGoalQueries(goal);
+
+  // --- Blend. Lead with the conceptual goal queries when the current
+  //     message is low-signal (frustration / one-liner) OR we have a
+  //     confident goal + a clear current need, OR the user stated a goal
+  //     explicitly. Otherwise lead with the literal current request and
+  //     keep the goal queries as the teaching tail. Protected phrases
+  //     always come first either way. ---
+  const lowSignal = currentContentWordCount < 2;
+  const goalLeads =
+    Boolean(goal.statedGoal) ||
+    lowSignal ||
+    (Boolean(goal.domain) && Boolean(goal.facet) && goal.confidence >= 0.5);
+
+  const smartQueries: string[] = goalLeads
+    ? [...protectedInPrompt, ...goalQueries, ...literalQueries]
+    : [...protectedInPrompt, ...literalQueries, ...goalQueries];
+
+  // Last resort: never ship empty. Single tokens get disambiguated.
+  if (smartQueries.length === 0) smartQueries.push(...topics.slice(0, 3));
 
   // De-dupe preserving order (first occurrence wins — most specific first).
   const seen = new Set<string>();
@@ -305,16 +408,35 @@ export function planFromContext(input: CuratorInput): CuratorPlan {
       seen.add(key);
       return true;
     })
-    .slice(0, 4);
+    .flatMap(expandSingleWord)
+    .slice(0, 5);
+
+  // directTopics = the immediate signal (what they're saying now).
+  // adjacentTopics = the goal + ecosystem (what they're building over
+  // time + what to learn). Seeding adjacents from the goal means the
+  // "teach the wider problem space" promise holds even with NO LLM key.
+  const adjacentSeen = new Set(topics.slice(0, 4).map((t) => t.toLowerCase()));
+  const adjacentTopics: string[] = [];
+  for (const t of [...goal.anchorTopics, ...goal.stack, ...topics.slice(4)]) {
+    const key = t.toLowerCase();
+    if (adjacentSeen.has(key)) continue;
+    adjacentSeen.add(key);
+    adjacentTopics.push(t);
+  }
+
+  const summary = goal.domain
+    ? `Building ${goal.domain}${goal.facet ? ` · needs ${goal.facet} help` : ""}`
+    : input.projectHint
+      ? `Working in ${input.projectHint}`
+      : `Working on: ${intent}`;
 
   return {
-    summary: input.projectHint
-      ? `Working in ${input.projectHint}`
-      : `Working on: ${intent}`,
+    summary,
     intent,
     directTopics: topics.slice(0, 4),
-    adjacentTopics: topics.slice(4),
+    adjacentTopics: adjacentTopics.slice(0, 8),
     xQueries,
+    goal,
   };
 }
 
@@ -400,6 +522,13 @@ export async function curateLive(
 
   let plan: CuratorPlan = deterministic;
 
+  // The deterministic plan always carries a derived goal. We hand a
+  // compact description of it to the LLM planners so live curation stays
+  // anchored to the long-horizon goal (and the current need) instead of
+  // re-planning off the tail of the transcript like it used to.
+  const goal = deterministic.goal ?? null;
+  const goalContext = goal ? goalContextString(goal) : null;
+
   // Phase 2 planner: GLM-4.6 via OpenRouter, strict JSON-schema. Runs
   // only when the Phase 2 credentials bundle is present. Falls back to
   // the deterministic plan on any failure.
@@ -411,7 +540,11 @@ export async function curateLive(
           apiKey: creds.openrouterApiKey,
           conversation,
           projectHint: input.projectHint,
+          goalContext,
         });
+        // Keep the derived goal on the LLM plan so the call site can
+        // persist it across refreshes.
+        plan = { ...plan, goal: plan.goal ?? goal ?? undefined };
       }
     } catch {
       plan = deterministic;
@@ -425,21 +558,73 @@ export async function curateLive(
     count: 10,
   });
 
-  // Agent-driven query planner (Gemini Flash). Runs when the direct
-  // OpenRouter key is set and we *don't* already have a GLM-4.6 plan
-  // from the Phase 2 path — the two planners don't need to both run.
+  // Agent-driven query planner (natural-phrase X queries, intent-vector
+  // from terminal context). Runs whenever any OpenRouter key is available —
+  // its xQueries take precedence over the GLM-4.6 plan because the agent
+  // planner's system prompt is specifically tuned for "what would a senior
+  // engineer in this problem space type into X search this week", which
+  // outranks the broader topic-plan GLM-4.6 produces. Both planners use the
+  // same model pool; we run them in parallel for the no-extra-latency case.
   let queries = plan.xQueries.length > 0 ? plan.xQueries : DEFAULT_AMBIENT_TOPICS.slice(0, 4);
-  if (opts.openRouterKey && !creds.openrouterApiKey) {
+  const plannerKey = opts.openRouterKey ?? creds.openrouterApiKey ?? null;
+  if (plannerKey) {
     const agentPlan = await planQueriesWithAgent({
       recentEvents: input.recentEvents,
       projectHint: input.projectHint,
-      openRouterKey: opts.openRouterKey,
+      openRouterKey: plannerKey,
+      goalContext,
     });
     if (agentPlan && agentPlan.queries.length > 0) {
-      queries = agentPlan.queries;
+      // Prefer agent-planner queries; preserve any from GLM-4.6 as tail
+      // so adjacent-topic coverage doesn't shrink to 4.
+      const merged: string[] = [];
+      const mergedSeen = new Set<string>();
+      for (const q of [...agentPlan.queries, ...plan.xQueries]) {
+        const k = q.toLowerCase().trim();
+        if (!k || mergedSeen.has(k)) continue;
+        mergedSeen.add(k);
+        merged.push(q);
+      }
+      queries = merged.slice(0, 6);
+      // Surface the agent-planner reason in the plan for the cockpit header.
+      if (agentPlan.reason && plan.summary === deterministic.summary) {
+        plan = { ...plan, summary: agentPlan.reason };
+      }
     }
   }
-  queries = queries.slice(0, 4);
+  // Promote adjacent topics into the live query pool. The LLM emits up to
+  // 8 conceptual topics (specific frameworks, ecosystem players, adjacent
+  // sub-fields) — previously these only decorated the plan summary and
+  // never reached the search layer, so the feed felt keyword-bound. Now
+  // we fire searches for the top 4 adjacent topics alongside xQueries
+  // so the feed actually surfaces the wider problem-space discussion
+  // (e.g. LangChain / CrewAI threads when the user is wiring an agentic
+  // slack bot, rather than only "slack notifications" results).
+  // Promote adjacent topics into the live query pool. Previously this
+  // required multi-word topics (`split >= 2`), which silently dropped
+  // every single-word ecosystem name the goal/LLM surfaced (langgraph,
+  // crewai, inngest…) — exactly the "teach the ecosystem" content. Now a
+  // single-word adjacent is disambiguated through expandSingleWord (one
+  // expansion each) instead of being thrown away.
+  const adjacentAsQueries = plan.adjacentTopics
+    .map((t) => sanitizeQuery(t))
+    .filter((t) => t.length >= 3)
+    .flatMap((t) =>
+      t.split(/\s+/).length >= 2 ? [t] : expandSingleWord(t).slice(0, 1),
+    )
+    .slice(0, 4);
+  // De-dupe across xQueries + adjacent to avoid double-firing the same
+  // string against HN/Reddit/Bluesky.
+  const queryPool: string[] = [];
+  const queryPoolSeen = new Set<string>();
+  for (const q of [...queries, ...adjacentAsQueries]) {
+    const key = q.toLowerCase().trim();
+    if (!key || queryPoolSeen.has(key)) continue;
+    queryPoolSeen.add(key);
+    queryPool.push(q);
+  }
+  // Cap total fan-out so we don't hammer search APIs on every refresh.
+  queries = queryPool.slice(0, 6);
   const xQueries = (plan.xQueries.length > 0 ? plan.xQueries : queries).slice(0, 4);
 
   // Sources run in parallel.

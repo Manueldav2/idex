@@ -33,6 +33,13 @@ interface PlannerInput {
   openRouterKey: string;
   /** Model id. Defaults to Gemini Flash for cost+speed. */
   model?: string;
+  /**
+   * Long-horizon goal context (domain / stack / current need) derived
+   * from the WHOLE session. Anchors the queries to what the user is
+   * building over time, so a low-signal latest message ("it's shit, make
+   * it faster") still produces goal-relevant queries.
+   */
+  goalContext?: string | null;
 }
 
 // Default to a free open-source model on OpenRouter so users with just a
@@ -54,17 +61,37 @@ function sanitizeAgentQuery(q: string): string {
     .trim();
 }
 
-const SYSTEM_PROMPT = `You are IDEX's feed curator. You look at what a developer is working on and return 4 short search queries that would surface the most useful tweets, discussions, or blog posts on X (Twitter).
+const SYSTEM_PROMPT = `You are IDEX's feed curator. You look at what a developer is working on and return 4 search queries that surface the most useful current X / HN / Reddit / Bluesky discussion — not generic results, the conversations a senior engineer in that exact problem space is having this week.
 
-NEVER include the words "IDEX", "cockpit", "freebuff", "moda", or "trygravity" in any query — those are the names of the product the developer is building, and matching on them returns IDEX Metals (mining stock), Beretta IDEX (firearms), and other unrelated namespace collisions. If the developer mentions building IDEX itself, search for the underlying technology (Tauri, React, Electron, AI agent UX) instead.
+Think CONCEPTUALLY, not by keywords:
 
-Rules:
-- Each query is 2–6 words.
-- Queries must be a natural phrase a developer would type — not a list of tokens. "claude code skills" ✓, "claude AND skills AND code" ✗.
-- Prefer specificity over breadth: "next.js app router cache revalidation" ✓, "next.js" ✗.
-- Mix one or two queries about the specific thing the user just asked, and one or two about the surrounding problem space.
-- No hashtags, no quotes in the queries themselves — the downstream system handles phrase quoting.
-- If the conversation is empty or ambient, return 4 queries about the project's technology stack inferred from the workspace name.
+1. Identify the domain, not the words. "fix my slack notification agent retry loop" → domain is "AI agents in chat-ops + notification reliability", NOT "slack" + "retry".
+2. Climb the abstraction ladder. For each query consider the immediate sub-field, the ecosystem players (specific frameworks/libs/products: LangChain, CrewAI, AutoGen, OpenAI Assistants, Inngest, Trigger.dev, Mastra…), and the analogous practices.
+3. Be opinionated and specific. "LangGraph vs CrewAI 2026" beats "AI agents". "slack bot LLM retry pattern" beats "slack notifications". Name real frameworks, libraries, and thought-leaders.
+
+Discovery / "best X" prompts (CRITICAL — was the most-broken pattern):
+- "best agents" / "what are the best agents out there" → 2026 reviews, framework comparisons, agent leaderboards. NOT "claude" or "mcp" or "ai" alone.
+  Good: "best ai agents 2026", "langgraph vs crewai", "devin cursor cline comparison", "agent benchmarks swe-bench"
+  Bad:  "claude agents", "ai mcp", "anthropic agents"
+- "best X" always → "best X 2026", "X comparison", "X benchmarks", "top X" — never just "X".
+- Never query for the user's CURRENT TOOL ("claude", "claude code", "cursor") when they ask about competitors — they want alternatives, not their own product.
+
+Mix the four queries: 2 on the user's exact current problem, 2 on the wider ecosystem so the feed both helps the task AND teaches.
+
+GOAL CONTEXT (when provided): you may be given the user's long-running goal, stack, and current need, derived from the WHOLE session — not just the last message. Treat it as the anchor. If the latest message is short, vague, or just frustration ("it's shit", "make it faster"), plan against the GOAL plus the stated need (e.g. goal "ai agents" + need "performance" → "ai agent latency optimization", "llm agent cost reduction"), NOT a literal search of the latest sentence.
+
+NEVER include these — they're either the user's own product, the agent they're talking to, or filler:
+- IDEX, cockpit, freebuff, moda, trygravity (this product's namespace).
+- Claude, Anthropic, MCP alone (the agent the user is INSIDE — conversational address, not interest).
+- Greetings: hey, hi, hello.
+- Generic verbs: fix, build, make, do, help.
+
+Hard rules:
+- 2-6 words per query, natural phrase ("react server components caching" ✓, "react AND caching" ✗).
+- No single-word queries ever.
+- No hashtags, no quotes — the downstream search layer handles phrasing.
+- No code, no secrets, no file paths in queries.
+- If the conversation is empty, return 4 queries about the technology stack inferred from the workspace name.
 
 Return strict JSON: { "queries": ["q1","q2","q3","q4"], "reason": "one short sentence" }.
 No prose, no markdown, no code fences.`;
@@ -81,6 +108,7 @@ export async function planQueriesWithAgent(
   const transcript = buildTranscript(input.recentEvents);
   const userMessage = [
     input.projectHint ? `Project: ${input.projectHint}` : "",
+    input.goalContext ? `Goal context: ${input.goalContext}` : "",
     transcript ? `Recent turns:\n${transcript}` : "No conversation yet — ambient feed.",
   ]
     .filter(Boolean)

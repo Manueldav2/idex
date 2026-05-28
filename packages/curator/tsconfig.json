@@ -9,5 +9,7 @@
       "@idex/types": ["../types/src/index.ts"]
     }
   },
-  "include": ["src/**/*", "src/**/*.json"]
+  "include": ["src/**/*", "src/**/*.json"],
+  "comment": "Evals run under vitest/tsx (own transpile + vitest globals), not the library tsc build.",
+  "exclude": ["src/__evals__"]
 }

@@ -11,12 +11,17 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "eval": "tsx src/__evals__/report.ts"
   },
   "dependencies": {
     "@idex/types": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.7.2"
+    "tsx": "^4.22.3",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
   }
 }
